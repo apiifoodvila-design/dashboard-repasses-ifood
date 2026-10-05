@@ -1,0 +1,413 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Repasses iFood Vila Árabe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: brand band with unit filter -> 4 KPI tiles -> waterfall of the month (where the sale goes) + payment calendar -> unit table that doubles as filter */
+:root{
+  --bg:#FAF7F6; --surface:#FFFFFF; --sunk:#F3EDEB; --line:#E7DDDA;
+  --fg:#2A1716; --muted:#7A6461;
+  --brand:#A3201E; --brand-ink:#FFFFFF; --saffron:#E79A1A;
+  --paid:#1E7F5C; --paid-soft:#DDF1E8; --sched:#2E3A59; --sched-soft:#E3E7F2;
+  --cost:#C2392F; --cost-soft:#F9E1DE; --warn:#B86A00; --warn-soft:#FCEBCC;
+  --f-display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-num:"JetBrains Mono", ui-monospace, Consolas, monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#171010; --surface:#211817; --sunk:#2B201F; --line:#3A2C2A;
+  --fg:#F4E9E7; --muted:#B39E9B;
+  --brand:#D8443F; --brand-ink:#FFFFFF; --saffron:#F2AE3D;
+  --paid:#4CC896; --paid-soft:#173A2E; --sched:#9DB0E0; --sched-soft:#232C44;
+  --cost:#F07A6E; --cost-soft:#40201D; --warn:#F2B04C; --warn-soft:#3D2C12;
+  color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#171010; --surface:#211817; --sunk:#2B201F; --line:#3A2C2A;
+  --fg:#F4E9E7; --muted:#B39E9B;
+  --brand:#D8443F; --brand-ink:#FFFFFF; --saffron:#F2AE3D;
+  --paid:#4CC896; --paid-soft:#173A2E; --sched:#9DB0E0; --sched-soft:#232C44;
+  --cost:#F07A6E; --cost-soft:#40201D; --warn:#F2B04C; --warn-soft:#3D2C12;
+  color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.45;padding:0 16px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* header */
+.band{margin:0 -16px;padding:22px 16px 20px;background:var(--brand);color:var(--brand-ink);position:relative;overflow:hidden}
+.band::after{content:"";position:absolute;inset:auto -40px -60px auto;width:260px;height:260px;border-radius:50% 50% 0 0;border:22px solid rgba(255,255,255,.08)}
+.band-in{max-width:1180px;margin:0 auto;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;position:relative;z-index:1}
+.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.14em;opacity:.8;font-weight:600}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,4.6vw,44px);line-height:1;margin:6px 0 0;text-wrap:balance}
+.period{display:inline-flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;opacity:.92}
+.period b{background:rgba(255,255,255,.16);padding:3px 10px;border-radius:99px;font-weight:600}
+.filter{display:flex;flex-direction:column;gap:6px;min-width:0}
+.filter label{font-size:12px;text-transform:uppercase;letter-spacing:.12em;opacity:.85;font-weight:600}
+select{font:600 15px var(--f-body);color:var(--fg);background:var(--surface);border:0;border-radius:10px;padding:11px 38px 11px 14px;max-width:100%;appearance:none;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+select:focus-visible,button:focus-visible,tr:focus-visible{outline:3px solid var(--saffron);outline-offset:2px}
+
+.scope{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+.scope h2{font-family:var(--f-display);font-weight:700;font-size:22px;margin:0}
+.scope .sub{color:var(--muted);font-size:13px}
+.reset{font:600 13px var(--f-body);background:var(--sunk);color:var(--fg);border:1px solid var(--line);border-radius:99px;padding:6px 14px;cursor:pointer}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.kpi .k{font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:600;display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.kpi .v{font-family:var(--f-num);font-weight:600;font-size:clamp(20px,2.4vw,27px);font-variant-numeric:tabular-nums;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi .n{font-size:13px;color:var(--muted)}
+.kpi.hero{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.kpi.hero .k,.kpi.hero .n{color:var(--bg);opacity:.75}
+.meter{height:8px;border-radius:99px;background:var(--sched-soft);overflow:hidden;display:flex}
+.meter i{display:block;height:100%;background:var(--paid)}
+
+/* panels */
+.grid2{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:16px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.panel h3{font-family:var(--f-display);font-weight:700;font-size:18px;margin:0}
+.panel .hint{color:var(--muted);font-size:13px;margin:-8px 0 0}
+
+/* waterfall */
+.wf{display:flex;flex-direction:column;gap:10px}
+.wf-row{display:grid;grid-template-columns:150px minmax(0,1fr) 120px;gap:12px;align-items:center}
+.wf-lab{font-size:14px;font-weight:600}
+.wf-lab small{display:block;font-weight:500;color:var(--muted);font-size:12px}
+.wf-track{height:26px;position:relative;background:var(--sunk);border-radius:6px}
+.wf-bar{position:absolute;top:0;bottom:0;border-radius:6px}
+.wf-val{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+.wf-row.total .wf-lab{font-family:var(--f-display);font-size:16px}
+.wf-sep{height:1px;background:var(--line)}
+
+/* payment calendar */
+.cal{display:flex;flex-direction:column;gap:8px}
+.pay{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+.pay.next{border-color:var(--saffron);box-shadow:inset 4px 0 0 var(--saffron)}
+.date{display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:10px;padding:6px 0;background:var(--sunk);line-height:1}
+.date b{font-family:var(--f-display);font-size:22px;font-weight:800}
+.date span{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:3px}
+.pay .mid{min-width:0;display:flex;flex-direction:column;gap:6px}
+.pay .per{font-size:13px;color:var(--muted)}
+.pbar{height:6px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.pbar i{display:block;height:100%;border-radius:99px}
+.pay .amt{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.pay .amt .num{font-weight:600;font-size:15px}
+.pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;letter-spacing:.04em;white-space:nowrap}
+.pill.pago{background:var(--paid-soft);color:var(--paid)}
+.pill.ag{background:var(--sched-soft);color:var(--sched)}
+.pill.prox{background:var(--warn-soft);color:var(--warn)}
+
+/* ranking */
+.rank{display:flex;flex-direction:column;gap:8px}
+.rk{display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) 104px;gap:10px;align-items:center;cursor:pointer;border-radius:8px;padding:3px 4px;background:none;border:0;color:inherit;font:inherit;text-align:left}
+.rk:hover{background:var(--sunk)}
+.rk.on{background:var(--sunk);box-shadow:inset 3px 0 0 var(--brand)}
+.rk .nm{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rk .st{height:14px;display:flex;border-radius:4px;overflow:hidden;background:var(--sunk)}
+.rk .st i{display:block;height:100%}
+.rk .vv{text-align:right;font-family:var(--f-num);font-size:13px;font-variant-numeric:tabular-nums}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* table */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:980px;font-size:13.5px}
+th,td{padding:10px 12px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700;background:var(--sunk);position:sticky;top:0;cursor:pointer;user-select:none}
+thead th:hover{color:var(--fg)}
+thead th[aria-sort]::after{content:" ↓";color:var(--brand)}
+thead th[aria-sort="ascending"]::after{content:" ↑"}
+tbody tr{border-top:1px solid var(--line);cursor:pointer}
+tbody tr:hover{background:var(--sunk)}
+tbody tr.on{background:var(--sunk);box-shadow:inset 3px 0 0 var(--brand)}
+td{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+td:first-child{font-family:var(--f-body);font-weight:600}
+td:first-child small{display:block;color:var(--muted);font-weight:500;font-size:12px}
+.neg{color:var(--cost)} .pos{color:var(--paid)}
+tfoot td{border-top:2px solid var(--fg);font-weight:700;background:var(--sunk)}
+.flag{display:inline-block;background:var(--warn-soft);color:var(--warn);font-family:var(--f-body);font-weight:700;font-size:11px;padding:2px 8px;border-radius:99px}
+.ok{color:var(--muted);font-family:var(--f-body)}
+
+.note{display:flex;gap:12px;align-items:flex-start;background:var(--warn-soft);color:var(--fg);border-radius:12px;padding:12px 14px;font-size:13.5px}
+.note b{color:var(--warn)}
+.foot{color:var(--muted);font-size:12px}
+
+@media (max-width:900px){
+  .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid2{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:520px){
+  .wf-row{grid-template-columns:104px minmax(0,1fr) 94px;gap:8px}
+  .wf-val{font-size:12.5px}
+  .rk{grid-template-columns:minmax(0,110px) minmax(0,1fr) 86px}
+  .pay{grid-template-columns:54px minmax(0,1fr) auto;gap:10px}
+}
+@media (prefers-reduced-motion:no-preference){
+  .wf-bar,.rk .st i,.pbar i,.meter i{transition:width .45s ease,left .45s ease}
+}
+</style>
+
+<header class="band">
+  <div class="band-in">
+    <div>
+      <div class="eyebrow">Vila Árabe · iFood</div>
+      <h1>Repasses do mês</h1>
+      <div class="period">Mês de apuração <b id="mesRef">…</b> <span id="mesPag"></span></div>
+    </div>
+    <div class="filter">
+      <label for="unidade">Unidade</label>
+      <select id="unidade"></select>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" style="margin-top:20px">
+  <div class="scope">
+    <div>
+      <h2 id="scopeName">Todas as unidades</h2>
+      <div class="sub" id="scopeSub"></div>
+    </div>
+    <button class="reset" id="reset" hidden>Ver todas as unidades</button>
+  </div>
+
+  <section class="kpis" aria-label="Resumo">
+    <div class="kpi hero">
+      <div class="k">Total a receber</div>
+      <div class="v" id="kTotal"></div>
+      <div class="n" id="kTotalN"></div>
+    </div>
+    <div class="kpi">
+      <div class="k"><span class="dot" style="background:var(--paid)"></span>Pago</div>
+      <div class="v" id="kPago"></div>
+      <div class="meter" aria-hidden="true"><i id="kMeter"></i></div>
+      <div class="n" id="kPagoN"></div>
+    </div>
+    <div class="kpi">
+      <div class="k"><span class="dot" style="background:var(--sched)"></span>Aguardando</div>
+      <div class="v" id="kAg"></div>
+      <div class="n" id="kAgN"></div>
+    </div>
+    <div class="kpi">
+      <div class="k"><span class="dot" style="background:var(--cost)"></span>Despesas no repasse</div>
+      <div class="v" id="kDesp"></div>
+      <div class="n" id="kDespN"></div>
+    </div>
+  </section>
+
+  <div class="note" id="diffNote" hidden></div>
+
+  <section class="grid2">
+    <div class="panel">
+      <h3>Da venda ao repasse</h3>
+      <p class="hint">Quanto sobra de cada R$ 100 vendidos, depois das despesas do iFood.</p>
+      <div class="wf" id="wf"></div>
+    </div>
+    <div class="panel">
+      <h3>Calendário de pagamentos</h3>
+      <p class="hint" id="calHint"></p>
+      <div class="cal" id="cal"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h3>Repasse por unidade</h3>
+    <p class="hint">Toque numa unidade para filtrar o painel.</p>
+    <div class="legend">
+      <span><i style="background:var(--paid)"></i>Pago</span>
+      <span><i style="background:var(--sched)"></i>Aguardando</span>
+      <span><i style="background:var(--saffron)"></i>Pago direto à loja (vouchers)</span>
+    </div>
+    <div class="rank" id="rank"></div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:10px">
+    <div class="scope"><h2>Detalhe por unidade</h2><span class="sub">Clique no título da coluna para ordenar</span></div>
+    <div class="tbl-wrap">
+      <table id="tbl">
+        <thead><tr>
+          <th data-k="nome">Unidade</th>
+          <th data-k="vendas">Vendas</th>
+          <th data-k="taxas">Taxas e comissões</th>
+          <th data-k="serv">Serviços e promoções</th>
+          <th data-k="aj">Ajustes</th>
+          <th data-k="pdesp">% despesas</th>
+          <th data-k="fat">Faturamento</th>
+          <th data-k="pago">Pago</th>
+          <th data-k="ag">Aguardando</th>
+          <th data-k="dif">Pago direto (vouchers)</th>
+        </tr></thead>
+        <tbody></tbody>
+        <tfoot></tfoot>
+      </table>
+    </div>
+  </section>
+
+  <p class="foot">Fonte: Portal do Parceiro iFood › Financeiro, lançado no banco de dados da Vila Árabe. <span id="atualizado"></span> “Pago direto (vouchers)” é a parte do faturamento paga pelo cliente direto à loja com voucher, por isso não entra nos repasses do iFood.</p>
+</main>
+
+<script>
+fetch("/api/dados").then(r=>{ if(!r.ok) throw new Error(r.status); return r.json(); }).then(DATA=>{
+const HOJE = new Date().toLocaleDateString("sv-SE",{timeZone:"America/Sao_Paulo"});
+const MESES_LONGOS=["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+{ const [y,m]=DATA.mes.split("-"); document.getElementById("mesRef").textContent=`${MESES_LONGOS[+m-1]} ${y}`;
+  const ds=DATA.lojas.flatMap(l=>l.repasses.map(r=>r.previsao_pagamento)).sort();
+  const f=s=>s.slice(8,10)+"/"+s.slice(5,7);
+  if(ds.length) document.getElementById("mesPag").textContent=`· pagamentos de ${f(ds[0])} a ${f(ds[ds.length-1])}`;
+  if(DATA.atualizado_em) document.getElementById("atualizado").textContent=`Última atualização: ${new Date(DATA.atualizado_em).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})}.`; }
+const brl = v => v.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const pct = v => (v*100).toLocaleString("pt-BR",{maximumFractionDigits:1,minimumFractionDigits:1})+"%";
+const MES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const dd = s => { const [y,m,d]=s.split("-"); return {d:+d, m:MES[+m-1], br:`${d}/${m}`}; };
+
+const lojas = DATA.lojas.map(l=>{
+  const f=l.faturamento, r=l.repasses;
+  const pago=r.filter(x=>x.situacao==="Pago").reduce((a,x)=>a+x.valor,0);
+  const ag=r.filter(x=>x.situacao!=="Pago").reduce((a,x)=>a+x.valor,0);
+  const desp=-(f.taxas_comissoes+f.servicos_promocoes);
+  return {id:String(l.id_loja), nome:l.nome.replace(/^Vila [ÁA]rabe\s*-?\s*/,""), full:l.nome, apelido:l.apelido_exibir||"",
+    vendas:f.valor_vendas, taxas:f.taxas_comissoes, serv:f.servicos_promocoes, aj:f.ajustes, fat:f.total_faturamento,
+    pago, ag, rep:pago+ag, dif:+(f.total_faturamento-(pago+ag)).toFixed(2), desp, pdesp:desp/f.valor_vendas, repasses:r};
+});
+
+const sel = document.getElementById("unidade");
+sel.innerHTML = `<option value="all">Todas as unidades (${lojas.length})</option>` +
+  [...lojas].sort((a,b)=>a.nome.localeCompare(b.nome,"pt-BR")).map(l=>`<option value="${l.id}">${l.nome}${l.apelido?` · ${l.apelido}`:""}</option>`).join("");
+
+let current="all", sortK="fat", sortDir=-1;
+try{ const s=localStorage.getItem("va-unidade"); if(s && (s==="all"||lojas.some(l=>l.id===s))) current=s; }catch(e){}
+
+function agg(list){
+  const t={vendas:0,taxas:0,serv:0,aj:0,fat:0,pago:0,ag:0,rep:0,dif:0,desp:0};
+  list.forEach(l=>Object.keys(t).forEach(k=>t[k]+=l[k]));
+  t.pdesp=t.desp/t.vendas;
+  const byDate={};
+  list.forEach(l=>l.repasses.forEach(r=>{
+    const k=r.previsao_pagamento;
+    byDate[k]=byDate[k]||{data:k,ini:r.periodo_inicio,fim:r.periodo_fim,valor:0,sit:r.situacao};
+    byDate[k].valor+=r.valor;
+  }));
+  t.cal=Object.values(byDate).sort((a,b)=>a.data.localeCompare(b.data));
+  return t;
+}
+
+function render(){
+  const list = current==="all"?lojas:lojas.filter(l=>l.id===current);
+  const t=agg(list), one=current!=="all"?list[0]:null;
+  sel.value=current;
+  document.getElementById("reset").hidden=!one;
+  document.getElementById("scopeName").textContent= one?one.full:"Todas as unidades";
+  document.getElementById("scopeSub").textContent= one
+     ? (one.apelido?`Chamada de ${one.apelido} · `:"")+`Id iFood ${one.id}`
+     : `${lojas.length} lojas somadas · vendas de ${brl(t.vendas)} no mês`;
+
+  // KPIs
+  document.getElementById("kTotal").textContent=brl(t.rep);
+  document.getElementById("kTotalN").textContent=`${t.cal.length} repasses semanais`;
+  document.getElementById("kPago").textContent=brl(t.pago);
+  document.getElementById("kMeter").style.width=pct(t.pago/t.rep).replace(",",".");
+  document.getElementById("kPagoN").textContent=`${pct(t.pago/t.rep)} do total já caiu na conta`;
+  document.getElementById("kAg").textContent=brl(t.ag);
+  const next=t.cal.find(c=>c.sit!=="Pago" && c.data>HOJE);
+  document.getElementById("kAgN").textContent= next?`Próximo: ${brl(next.valor)} em ${dd(next.data).br}`:"Nada agendado";
+  document.getElementById("kDesp").textContent=brl(t.desp);
+  document.getElementById("kDespN").textContent=`${pct(t.pdesp)} das vendas ficaram com o iFood`;
+
+  // diff note
+  const note=document.getElementById("diffNote");
+  if(t.dif>0.009){
+    const n= one?"":` em ${lojas.filter(l=>l.dif>0.009 && list.includes(l)).length} lojas`;
+    note.innerHTML=`<b>Vouchers</b><span>Do faturamento de ${brl(t.fat)}, <b>${brl(t.dif)}</b>${n} são pedidos pagos direto à loja com voucher. Esse valor não entra nos repasses do iFood; os repasses somam ${brl(t.rep)}.</span>`;
+    note.hidden=false;
+  } else note.hidden=true;
+
+  // waterfall
+  const max=t.vendas, rows=[
+    {lab:"Vendas",sub:"valor bruto",v:t.vendas,from:0,to:t.vendas,c:"var(--fg)"},
+    {lab:"Taxas e comissões",sub:pct(-t.taxas/t.vendas)+" das vendas",v:t.taxas,from:t.vendas+t.taxas,to:t.vendas,c:"var(--cost)"},
+    {lab:"Serviços e promoções",sub:pct(-t.serv/t.vendas)+" das vendas",v:t.serv,from:t.vendas+t.taxas+t.serv,to:t.vendas+t.taxas,c:"var(--cost)"},
+    {lab:"Ajustes",sub:"créditos do iFood",v:t.aj,from:t.vendas+t.taxas+t.serv,to:t.fat,c:"var(--paid)"},
+  ];
+  const w=v=>(v/max*100).toFixed(3)+"%";
+  document.getElementById("wf").innerHTML = rows.map(r=>`
+    <div class="wf-row"><div class="wf-lab">${r.lab}<small>${r.sub}</small></div>
+      <div class="wf-track"><div class="wf-bar" style="left:${w(Math.min(r.from,r.to))};width:max(2px,${w(Math.abs(r.to-r.from))});background:${r.c}"></div></div>
+      <div class="wf-val ${r.v<0?"neg":""}">${r.v<0?"−":""}${brl(Math.abs(r.v))}</div></div>`).join("") +
+    `<div class="wf-sep"></div>
+     <div class="wf-row total"><div class="wf-lab">Faturamento<small>${pct(t.fat/t.vendas)} das vendas</small></div>
+      <div class="wf-track"><div class="wf-bar" style="left:0;width:${w(t.fat)};background:var(--brand)"></div></div>
+      <div class="wf-val">${brl(t.fat)}</div></div>`;
+
+  // calendar
+  const cmax=Math.max(...t.cal.map(c=>c.valor));
+  document.getElementById("calHint").textContent="Cada semana de vendas é paga cerca de 30 dias depois.";
+  document.getElementById("cal").innerHTML=t.cal.map(c=>{
+    const D=dd(c.data), isNext=next&&c.data===next.data, pago=c.sit==="Pago";
+    const a=dd(c.ini), b=dd(c.fim);
+    return `<div class="pay ${isNext?"next":""}">
+      <div class="date"><b>${D.d}</b><span>${D.m}</span></div>
+      <div class="mid"><div class="per">Vendas de ${a.d} a ${b.d}/${b.m}</div>
+        <div class="pbar"><i style="width:${(c.valor/cmax*100).toFixed(2)}%;background:${pago?"var(--paid)":"var(--sched)"}"></i></div></div>
+      <div class="amt"><span class="num">${brl(c.valor)}</span>
+        <span class="pill ${pago?"pago":isNext?"prox":"ag"}">${pago?"PAGO":isNext?"PRÓXIMO":"AGENDADO"}</span></div>
+    </div>`}).join("");
+
+  // ranking
+  const rk=[...lojas].sort((a,b)=>b.fat-a.fat), rmax=rk[0].fat;
+  document.getElementById("rank").innerHTML=rk.map(l=>`
+    <button class="rk ${l.id===current?"on":""}" data-id="${l.id}" aria-pressed="${l.id===current}">
+      <span class="nm" title="${l.full}">${l.nome}</span>
+      <span class="st" aria-hidden="true">
+        <i style="width:${(l.pago/rmax*100).toFixed(2)}%;background:var(--paid)"></i>
+        <i style="width:${(l.ag/rmax*100).toFixed(2)}%;background:var(--sched)"></i>
+        <i style="width:${(Math.max(0,l.dif)/rmax*100).toFixed(2)}%;background:var(--saffron)"></i>
+      </span>
+      <span class="vv">${brl(l.fat)}</span>
+    </button>`).join("");
+
+  // table
+  const rowsT=[...lojas].sort((a,b)=>{
+    const x=a[sortK],y=b[sortK];
+    return (typeof x==="string"?x.localeCompare(y,"pt-BR"):x-y)*sortDir;
+  });
+  const money=(v,cls="")=>`<td class="${cls}">${v<0?"−":""}${brl(Math.abs(v))}</td>`;
+  document.querySelector("#tbl tbody").innerHTML=rowsT.map(l=>`
+    <tr data-id="${l.id}" tabindex="0" class="${l.id===current?"on":""}">
+      <td>${l.nome}${l.apelido?`<small>${l.apelido}</small>`:""}</td>
+      ${money(l.vendas)}${money(l.taxas,"neg")}${money(l.serv,l.serv<0?"neg":"")}${money(l.aj,l.aj>0?"pos":"")}
+      <td>${pct(l.pdesp)}</td>${money(l.fat)}${money(l.pago,"pos")}${money(l.ag)}
+      <td>${l.dif>0.009?`<span class="flag">${brl(l.dif)}</span>`:`<span class="ok">—</span>`}</td>
+    </tr>`).join("");
+  const T=agg(lojas);
+  document.querySelector("#tbl tfoot").innerHTML=`<tr><td>Todas (${lojas.length})</td>
+    ${money(T.vendas)}${money(T.taxas,"neg")}${money(T.serv,"neg")}${money(T.aj,"pos")}<td>${pct(T.pdesp)}</td>
+    ${money(T.fat)}${money(T.pago,"pos")}${money(T.ag)}<td>${brl(T.dif)}</td></tr>`;
+  document.querySelectorAll("#tbl thead th").forEach(th=>{
+    if(th.dataset.k===sortK) th.setAttribute("aria-sort",sortDir>0?"ascending":"descending"); else th.removeAttribute("aria-sort");
+  });
+}
+
+function setUnit(id){
+  current = (id===current && id!=="all") ? "all" : id;
+  try{ localStorage.setItem("va-unidade",current); }catch(e){}
+  render();
+}
+sel.addEventListener("change",e=>{ current=e.target.value; try{localStorage.setItem("va-unidade",current)}catch(_){} render(); });
+document.getElementById("reset").addEventListener("click",()=>setUnit("all"));
+document.getElementById("rank").addEventListener("click",e=>{ const b=e.target.closest(".rk"); if(b) setUnit(b.dataset.id); });
+const tb=document.querySelector("#tbl tbody");
+tb.addEventListener("click",e=>{ const r=e.target.closest("tr"); if(r) setUnit(r.dataset.id); });
+tb.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ const r=e.target.closest("tr"); if(r){e.preventDefault(); setUnit(r.dataset.id);} } });
+document.querySelectorAll("#tbl thead th").forEach(th=>th.addEventListener("click",()=>{
+  const k=th.dataset.k; if(sortK===k) sortDir*=-1; else {sortK=k; sortDir=k==="nome"?1:-1;} render();
+}));
+render();
+}).catch(e=>{ document.querySelector("main").innerHTML=`<div class="note"><b>Erro</b><span>Não consegui carregar os dados (${e.message}). Atualize a página.</span></div>`; });
+</script>
+
+</body></html>
