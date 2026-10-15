@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Homologação iFood · Repasses Vila Árabe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>
+:root{--bg:#FAF7F6;--surface:#fff;--sunk:#F3EDEB;--line:#E7DDDA;--fg:#2A1716;--muted:#7A6461;--brand:#A3201E;--saffron:#E79A1A;
+--ok:#1E7F5C;--ok-soft:#DDF1E8;--cost:#C2392F;--sched:#2E3A59;--sched-soft:#E3E7F2;
+--fd:"Bricolage Grotesque",system-ui,sans-serif;--fb:"Figtree",system-ui,sans-serif;--fm:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 var(--fb)}
+.band{background:var(--brand);color:#fff;padding:18px 28px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+.band h1{font:800 24px/1.1 var(--fd);margin:0}.band small{display:block;opacity:.8;font-weight:500;margin-top:4px}
+.meta{display:flex;flex-wrap:wrap;gap:10px}
+.chip{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:6px 12px;font:600 13px var(--fm)}
+.chip b{font-family:var(--fb);font-weight:600;opacity:.75;margin-right:6px}
+#relogio{background:#fff;color:var(--brand);font-size:15px}
+main{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+.intro{color:var(--muted);margin:0 0 18px}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.tabs button{font:600 14px var(--fb);border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:10px 16px;border-radius:999px;cursor:pointer}
+.tabs button[aria-selected=true]{background:var(--fg);color:#fff;border-color:var(--fg)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px;margin-bottom:16px}
+.head{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+.head h2{font:800 20px var(--fd);margin:0}
+.run{font:700 14px var(--fb);background:var(--brand);color:#fff;border:0;border-radius:10px;padding:11px 18px;cursor:pointer}
+.run:disabled{opacity:.6;cursor:wait}
+.req{font:500 12.5px/1.6 var(--fm);background:var(--sunk);border-radius:10px;padding:12px 14px;margin-top:14px;overflow-x:auto;white-space:pre}
+.st{display:inline-block;padding:1px 8px;border-radius:6px;font-weight:600}.st.ok{background:var(--ok-soft);color:var(--ok)}.st.err{background:#F9E1DE;color:var(--cost)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-top:16px}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px}.kpi span{color:var(--muted);font-size:12.5px;font-weight:600;display:block}
+.kpi strong{font:700 20px var(--fm);display:block;margin-top:4px}
+.neg{color:var(--cost)}.pos{color:var(--ok)}
+table{width:100%;border-collapse:collapse;margin-top:16px;font-size:13.5px}
+th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em;border-bottom:1px solid var(--line);padding:8px}
+td{border-bottom:1px solid var(--line);padding:8px;vertical-align:top}td.n{text-align:right;font-family:var(--fm);white-space:nowrap}
+.scroll{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:12px;margin-top:16px}.scroll table{margin:0}.scroll th{position:sticky;top:0;background:var(--surface)}
+details{margin-top:14px}summary{cursor:pointer;color:var(--muted);font-weight:600}
+pre.json{font:12px/1.5 var(--fm);background:#1d1413;color:#f3e9e7;border-radius:10px;padding:14px;max-height:380px;overflow:auto}
+.empty{color:var(--muted);padding:18px 0 4px}
+.note{background:var(--sched-soft);color:var(--sched);border-radius:10px;padding:10px 14px;margin-top:14px;font-size:13.5px}
+@media (max-width:640px){.band{padding:14px 16px}main{padding:16px}}
+</style></head><body>
+<header class="band">
+  <div><h1>Homologação iFood</h1><small>Dashboard Repasses Vila Árabe · ambiente de teste (consulta ao vivo)</small></div>
+  <div class="meta">
+    <span class="chip" id="relogio">--/--/---- --:--:--</span>
+    <span class="chip"><b>client_id</b><span id="cid">f27c1a24-ad93-4fd7-810a-7d9cb03def6e</span></span>
+    <span class="chip"><b>merchant</b>b4451ef7-13ab-4ec3-9b98-51c99ec6a5ee</span>
+  </div>
+</header>
+<main>
+  <p class="intro">Cada botão autentica com o app de teste (<code>client_credentials</code>) e chama a API do iFood agora, com o header <code>x-request-homologation: true</code>. Loja: Teste - EMPORIO MEDITERRANEO LTDA · competência 2025-08.</p>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-t="sales" aria-selected="true">Sales</button>
+    <button role="tab" data-t="events">Financial Events</button>
+    <button role="tab" data-t="reconciliation">Reconciliation</button>
+    <button role="tab" data-t="settlements">Settlements</button>
+  </nav>
+  <section id="painel"></section>
+</main>
+<script>
+const brl = v => (v<0?"-":"")+"R$ "+Math.abs(+v||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+const cls = v => v<0?"neg":"pos";
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtData = iso => iso? new Date(iso).toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"}):"";
+const soData = d => d? d.slice(0,10).split("-").reverse().join("/"):"";
+setInterval(()=>{document.getElementById("relogio").textContent=new Date().toLocaleString("pt-BR",{timeZone:"America/Sao_Paulo"})+" (Brasília)"},250);
+
+const TIT={sales:"Sales — vendas e valores por pedido",events:"Financial Events — eventos financeiros",reconciliation:"Reconciliation — arquivo de conciliação",settlements:"Settlements — liquidações / repasses"};
+let atual="sales";const cache={};
+document.querySelectorAll(".tabs button").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tabs button").forEach(x=>x.setAttribute("aria-selected",x===b));atual=b.dataset.t;desenha();});
+
+function desenha(){
+  const d=cache[atual];
+  document.getElementById("painel").innerHTML=`<div class="card"><div class="head"><h2>${TIT[atual]}</h2>
+  <button class="run" id="run">${d?"Consultar novamente":"Consultar agora"}</button></div>
+  <div id="res">${d?render(atual,d):'<p class="empty">Clique em “Consultar agora” para chamar a API.</p>'}</div></div>`;
+  document.getElementById("run").onclick=consulta;
+}
+async function consulta(){
+  const btn=document.getElementById("run");btn.disabled=true;btn.textContent="Consultando…";
+  try{const r=await fetch("/api/homolog/"+atual,{method:"POST"});const j=await r.json();j._http=r.status;cache[atual]=j;if(j.clientId)document.getElementById("cid").textContent=j.clientId;}
+  catch(e){cache[atual]={erro:String(e)};}
+  desenha();
+}
+function reqBox(j){
+  if(j.erro) return `<div class="req"><span class="st err">erro</span> ${esc(j.erro)}</div>`;
+  const linhas=[`POST /authentication/v1.0/oauth/token  →  <span class="st ${j.tokenStatus==200?"ok":"err"}">${j.tokenStatus}</span>  (${j.tokenMs} ms)  client_id=${esc(j.clientId)}`];
+  (j.out||[]).forEach(o=>linhas.push(`GET ${esc(o.path)}\n    x-request-homologation: true  →  <span class="st ${o.status==200?"ok":"err"}">${o.status}</span>  (${o.ms} ms)  ${fmtData(o.quando)}${o.traceId?"  trace "+esc(o.traceId):""}`));
+  return `<div class="req">${linhas.join("\n")}</div>`;
+}
+const kpi=(t,v,c)=>`<div class="kpi"><span>${t}</span><strong class="${c||""}">${v}</strong></div>`;
+const raw=o=>`<details><summary>Resposta JSON da API</summary><pre class="json">${esc(JSON.stringify(o,null,2))}</pre></details>`;
+
+function render(t,j){
+  if(!j.out) return reqBox(j);
+  const b=j.out[0].body||{};
+  if(t==="sales"){
+    const s=b.sales||[];
+    const rows=s.map(x=>{const g=x.saleGrossValue||{},bs=x.billingSummary||{},pg=(x.payments?.methods||[]).reduce((a,m)=>a+m.value,0);
+      return `<tr><td>#${esc(x.shortId)}<br><small>${fmtData(x.createdAt)}</small></td><td>${esc(x.currentStatus)}</td><td>${(x.payments?.methods||[]).map(m=>esc(m.method+" · "+m.liability)).join("<br>")}</td>
+      <td class="n">${brl(g.bag)}</td><td class="n">${brl(x.benefits?.totalValue)}</td><td class="n">${brl(g.serviceFee)}</td><td class="n">${brl(pg)}</td><td class="n"><b>${brl(bs.saleBalance)}</b></td></tr>`}).join("");
+    return reqBox(j)+`<div class="kpis">${kpi("Pedidos retornados",s.length)}${kpi("Valor líquido total",brl(s.reduce((a,x)=>a+(x.billingSummary?.saleBalance||0),0)))}</div>
+    <div class="scroll"><table><tr><th>Pedido</th><th>Status</th><th>Pagamento</th><th>Itens (bag)</th><th>Benefícios</th><th>Taxa serviço</th><th>Pago pelo cliente</th><th>Loja recebe</th></tr>${rows||'<tr><td colspan=8 class="empty">Sem vendas</td></tr>'}</table></div>`+raw(b);
+  }
+  if(t==="events"||t==="settlements"){
+    const evs=(t==="events"?b:(j.out[1]?.body||{})).financialEvents||[];
+    if(t==="settlements"){
+      const st=b;const lista=st.settlements||st.data||[];
+      const grupos={};evs.forEach(e=>{const k=(e.settlement?.expectedDate||"")+"|"+(e.period?.idSaldo||"");(grupos[k]=grupos[k]||{data:e.settlement?.expectedDate,saldo:e.period?.idSaldo,ini:e.period?.beginDate,fim:e.period?.endDate,total:0,imp:0,n:0});grupos[k].total+=e.amount.value;if(e.hasTransferImpact)grupos[k].imp+=e.amount.value;grupos[k].n++;});
+      const gs=Object.values(grupos);const porData={};gs.forEach(g=>porData[g.data]=(porData[g.data]||0)+g.imp);
+      return reqBox(j)+`<div class="kpis">${Object.entries(porData).map(([d,v])=>kpi("Liquidação prevista "+soData(d),brl(v),cls(v))).join("")}${kpi("Saldos que compõem",gs.length)}</div>
+      <table><tr><th>Data de pagamento</th><th>idSaldo</th><th>Período apurado</th><th>Eventos</th><th>Total do saldo</th><th>Com impacto no repasse</th></tr>
+      ${gs.map(g=>`<tr><td>${soData(g.data)}</td><td>${esc(g.saldo)}</td><td>${soData(g.ini)} a ${soData(g.fim)}</td><td>${g.n}</td><td class="n">${brl(g.total)}</td><td class="n ${cls(g.imp)}"><b>${brl(g.imp)}</b></td></tr>`).join("")}</table>
+      <div class="note">Resposta do endpoint /settlements: ${lista.length? lista.length+" registro(s)":"lista vazia no ambiente de teste"}. A tabela acima agrupa os Financial Events pela data prevista de repasse (settlement.expectedDate) e pelo idSaldo.</div>`+raw({settlements:b,financialEvents:j.out[1]?.body});
+    }
+    const tot=evs.reduce((a,e)=>a+e.amount.value,0),imp=evs.filter(e=>e.hasTransferImpact).reduce((a,e)=>a+e.amount.value,0),oc=evs.filter(e=>e.trigger==="SINGLE_OCCURRENCE").reduce((a,e)=>a+e.amount.value,0);
+    return reqBox(j)+`<div class="kpis">${kpi("Eventos",evs.length)}${kpi("Total dos eventos",brl(tot))}${kpi("Líquido (impacto no repasse)",brl(imp))}${kpi("Ocorrências avulsas",brl(oc),"neg")}</div>
+    <div class="scroll"><table><tr><th>Evento</th><th>Descrição</th><th>Pedido</th><th>Pagamento</th><th>Responsável</th><th>Repasse</th><th>Valor</th></tr>
+    ${evs.map(e=>`<tr><td>${esc(e.name)}</td><td>${esc(e.description).slice(0,60)}</td><td><small>${esc((e.reference?.id||"").slice(0,8))}</small></td><td>${esc([e.payment?.method,e.payment?.brand].filter(Boolean).join(" · "))}</td><td>${esc(e.payment?.liability)}</td><td>${soData(e.settlement?.expectedDate)}${e.hasTransferImpact?"":" <small>(sem impacto)</small>"}</td><td class="n ${cls(e.amount.value)}">${brl(e.amount.value)}</td></tr>`).join("")}</table></div>`+raw(b);
+  }
+  if(t==="reconciliation"){
+    const csv=j.out[0].csv||{linhas:[]},L=csv.linhas,num=r=>parseFloat(String(r.valor).replace(",","."))||0;
+    const pedidos=new Set(L.map(r=>r.pedido_associado_ifood).filter(Boolean)).size;
+    const repassado=L.filter(r=>r.impacto_no_repasse==="SIM").reduce((a,r)=>a+num(r),0);
+    const porTipo={};L.forEach(r=>{const k=r.fato_gerador+" · "+r.tipo_lancamento;porTipo[k]=(porTipo[k]||0)+num(r)});
+    return reqBox(j)+`<div class="kpis">${kpi("Linhas no arquivo",L.length)}${kpi("Pedidos únicos",pedidos)}${kpi("Total com impacto no repasse",brl(repassado))}</div>
+    <div class="note">downloadPath recebido e arquivo .csv.gz baixado e lido automaticamente (${csv.colunas?.length||0} colunas).</div>
+    <table><tr><th>Fato gerador · tipo de lançamento</th><th>Total</th></tr>${Object.entries(porTipo).sort().map(([k,v])=>`<tr><td>${esc(k)}</td><td class="n ${cls(v)}">${brl(v)}</td></tr>`).join("")}</table>
+    <div class="scroll"><table><tr><th>Pedido</th><th>Fato gerador</th><th>Lançamento</th><th>Descrição</th><th>Responsável</th><th>Impacto</th><th>Valor</th></tr>
+    ${L.slice(0,300).map(r=>`<tr><td>${esc(r.pedido_associado_ifood_curto||"")}</td><td>${esc(r.fato_gerador)}</td><td>${esc(r.tipo_lancamento)}</td><td>${esc(r.descricao_lancamento)}</td><td>${esc(r.responsavel_transacao)}</td><td>${esc(r.impacto_no_repasse)}</td><td class="n ${cls(num(r))}">${brl(num(r))}</td></tr>`).join("")}</table></div>`+raw(b);
+  }
+}
+desenha();
+</script>
+</body></html>

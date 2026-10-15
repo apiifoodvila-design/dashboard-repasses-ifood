@@ -37,6 +37,34 @@ app.get("/api/dados", async (req, res) => {
   }
 });
 
+
+// Homologação iFood: consulta ao vivo o ambiente de teste (app de teste + header x-request-homologation)
+const HOMOLOG_URL = process.env.HOMOLOG_URL || (DADOS_URL || "").replace("ifood-repasses", "ifood-homolog");
+const LOJA_TESTE = "b4451ef7-13ab-4ec3-9b98-51c99ec6a5ee";
+const CHAMADAS = {
+  merchants: { paths: ["/merchant/v1.0/merchants"] },
+  sales: { paths: [`/financial/v3.0/merchants/${LOJA_TESTE}/sales?beginSalesDate=2025-08-01&endSalesDate=2025-08-31`] },
+  events: { paths: [`/financial/v3.0/merchants/${LOJA_TESTE}/financial-events?beginDate=2025-08-01&endDate=2025-08-31`] },
+  reconciliation: { paths: [`/financial/v3.0/merchants/${LOJA_TESTE}/reconciliation?competence=2025-08`], baixar_csv: true },
+  settlements: { paths: [`/financial/v3.0/merchants/${LOJA_TESTE}/settlements?beginPaymentDate=2025-08-01&endPaymentDate=2025-08-31`,
+                         `/financial/v3.0/merchants/${LOJA_TESTE}/financial-events?beginDate=2025-08-01&endDate=2025-08-31`] },
+};
+app.post("/api/homolog/:api", async (req, res) => {
+  const c = CHAMADAS[req.params.api];
+  if (!c) return res.status(404).json({ erro: "API desconhecida" });
+  try {
+    const r = await fetch(HOMOLOG_URL, {
+      method: "POST",
+      headers: { "x-dash-token": DADOS_TOKEN, "Content-Type": "application/json" },
+      body: JSON.stringify({ tag: "video:" + req.params.api, retornar: true, ...c }),
+    });
+    res.status(r.status).type("application/json").send(await r.text());
+  } catch (e) {
+    console.error(e);
+    res.status(502).json({ erro: "Falha ao consultar o iFood" });
+  }
+});
+
 app.use(express.static(path.join(__dirname, "public")));
 
 const port = process.env.PORT || 3000;
