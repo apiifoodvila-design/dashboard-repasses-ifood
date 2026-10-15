@@ -133,5 +133,20 @@ function render(t,j){
   }
 }
 desenha();
+
+// Modo automático (?auto): percorre as 4 APIs sozinho, para gravar o vídeo sem clicar em nada
+const pausa=ms=>new Promise(r=>setTimeout(r,ms));
+async function rolar(){const alvo=document.body.scrollHeight;for(let y=window.scrollY;y<alvo-innerHeight;y+=6){scrollTo(0,y);await pausa(16);}await pausa(1500);scrollTo({top:0,behavior:"smooth"});await pausa(1200);}
+async function auto(){
+  await pausa(4000);
+  for(const t of ["sales","events","reconciliation","settlements"]){
+    document.querySelector(`.tabs button[data-t="${t}"]`).click();await pausa(1500);
+    await consulta();await pausa(2500);
+    const d=document.querySelector("#res details");if(d){d.open=true;}
+    await rolar();
+  }
+  document.querySelector('.tabs button[data-t="sales"]').click();
+}
+if(/[?&#]auto/.test(location.href)) auto();
 </script>
 </body></html>
