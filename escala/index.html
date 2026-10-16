@@ -340,6 +340,8 @@ function situacao(c,dia){
   if(cob && cob.loja_id!==c.loja_id) return {s:"cobrindo",o:cob};
   return {s:escalado(c,dia)?"trab":"folga"};
 }
+const numLoja=n=>{const m=String(n).match(/loja\s*(\d+)/i);return m?+m[1]:999};
+const ordLoja=(a,b)=>numLoja(a.nome)-numLoja(b.nome)||a.nome.localeCompare(b.nome);
 const lojaNome=id=>(LOJAS.find(l=>l.id===id)||{}).nome||"—";
 const pill=s=>({trab:'<span class="pill p-trab">Trabalhando</span>',folga:'<span class="pill p-folga">Folga</span>',falta:'<span class="pill p-falta">Falta</span>',atestado:'<span class="pill p-atestado">Atestado</span>',ferias:'<span class="pill p-ferias">Férias</span>',cobrindo:'<span class="pill p-cob">Cobrindo outra loja</span>'}[s]||s);
 const ehGestor=()=>EU&&(EU.perfil==="gestor"||EU.perfil==="admin");
@@ -372,7 +374,7 @@ $("#fEscolherLoja").onsubmit=async e=>{e.preventDefault();const f=new FormData(e
   const r=await sb.rpc("escala_entrar_loja",{p_nome:f.get("nome"),p_loja:+f.get("loja")});
   if(r.error){$("#erroEscolher").textContent="Erro: "+r.error.message;return} iniciar();};
 async function lojasCadastro(){const {data}=await sb.rpc("escala_lojas_cadastro");
-  $$(".selCadLoja").forEach(s=>s.innerHTML='<option value="">Sua loja…</option>'+(data||[]).map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join(""));}
+  $$(".selCadLoja").forEach(s=>s.innerHTML='<option value="">Sua loja…</option>'+(data||[]).sort(ordLoja).map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join(""));}
 async function sair(){await sb.auth.signOut();location.reload()}
 
 async function iniciar(){
@@ -391,7 +393,7 @@ async function iniciar(){
 
 async function carregarBase(){
   const [l,c]=await Promise.all([sb.from("escala_lojas").select("*").order("nome"),sb.from("escala_colaboradores").select("*").order("nome")]);
-  LOJAS=l.data||[]; COLABS=c.data||[];
+  LOJAS=(l.data||[]).sort(ordLoja); COLABS=c.data||[];
   const ini=addDias(hojeISO(),-60);
   const o=await sb.from("escala_ocorrencias").select("*").gte("data_fim",ini).order("criado_em",{ascending:false}).limit(5000);
   OCS=o.data||[]; atualizarBadge();
@@ -761,7 +763,7 @@ async function redefinirSenha(id,nome){const s=prompt(`Nova senha para ${nome} (
   if(s.length<6)return toast("A senha precisa ter pelo menos 6 caracteres");
   const {error}=await sb.rpc("escala_admin_definir_senha",{p_user:id,p_senha:s});toast(error?"Erro: "+error.message:`Senha de ${nome} alterada. Passe para ele(a) a nova senha.`)}
 $("#fLoja").onsubmit=async e=>{e.preventDefault();const nome=e.target.nome.value.trim();const {data,error}=await sb.from("escala_lojas").insert({nome}).select().single();
-  if(error)return toast("Erro: "+error.message);LOJAS.push(data);LOJAS.sort((a,b)=>a.nome.localeCompare(b.nome));e.target.reset();montarSelects();renderUsuarios();toast("Loja adicionada")};
+  if(error)return toast("Erro: "+error.message);LOJAS.push(data);LOJAS.sort(ordLoja);e.target.reset();montarSelects();renderUsuarios();toast("Loja adicionada")};
 async function ativarLoja(id,v){await sb.from("escala_lojas").update({ativo:v}).eq("id",id);LOJAS.find(l=>l.id===id).ativo=v;montarSelects()}
 
 iniciar();
