@@ -73,7 +73,26 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
 .mat .bad{color:var(--falta);font-weight:700}
 .cal{display:grid;grid-template-columns:200px 1fr;gap:0;font-size:13px}
 .empty{padding:24px;text-align:center;color:var(--muted)}
-@media (max-width:640px){header.top{padding:10px 14px}nav.tabs{top:48px}main{padding:14px 12px 80px}.kpi strong{font-size:24px}}
+.mesTbl{max-height:75vh;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.grade{border-collapse:separate;border-spacing:0;font-size:12px}
+.grade th,.grade td{padding:0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center}
+.grade th{position:sticky;top:0;background:var(--surface);z-index:2;padding:4px 0;font-size:11px;text-transform:none;letter-spacing:0;min-width:30px}
+.grade th.we,.grade td.we{background:#FBF3F1}
+.grade .nm{position:sticky;left:0;background:var(--surface);z-index:1;text-align:left;padding:5px 8px;min-width:190px;max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grade th.nm{z-index:3}
+.grade .tot{padding:4px 6px;font-weight:700;background:var(--sunk)}
+.cel{display:inline-flex;align-items:center;justify-content:center;width:28px;height:26px;border-radius:5px;font-weight:700;font-size:11px;position:relative}
+.c-T{color:#1E7F5C;background:#E9F6F0}.c-F{background:#6E6E6E;color:#fff}.c-FA{background:var(--falta);color:#fff}.c-AT{background:var(--atest);color:#fff}.c-FE{background:var(--ferias);color:#fff}
+.cel.aj::after{content:"";position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:#E79A1A}
+.grade td.clic{cursor:pointer}.grade td.clic:hover .cel{outline:2px solid var(--brand)}
+.grade tr.sep td{background:var(--sunk);font-weight:700;text-align:left;padding:4px 8px}
+.grade tr.rod td{background:var(--sunk);font-weight:700;font-size:11px;padding:4px 0}
+.grade tr.rod td.nm{background:var(--sunk)}
+.legenda{margin-bottom:10px;display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+@media print{header.top,nav.tabs,.toast,.no-print{display:none!important}main{padding:0;max-width:none}.card{border:0;padding:0}.mesTbl{max-height:none;overflow:visible;border:0}
+ .grade .nm,.grade th{position:static}body{background:#fff}@page{size:landscape;margin:8mm}.cel{width:22px;height:20px;font-size:9px}.grade .nm{min-width:150px}
+ *{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media (max-width:640px){.grade .nm{min-width:120px;max-width:130px}header.top{padding:10px 14px}nav.tabs{top:48px}main{padding:14px 12px 80px}.kpi strong{font-size:24px}}
 </style>
 </head>
 <body>
@@ -114,6 +133,7 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
   </header>
   <nav class="tabs" id="tabs">
     <button data-t="dia" class="on">Painel do dia</button>
+    <button data-t="mes">Escala do mês</button>
     <button data-t="alertas">Alertas <span class="badge hidden" id="bAlertas">0</span></button>
     <button data-t="lancar">Lançar falta / atestado</button>
     <button data-t="ferias">Férias</button>
@@ -134,6 +154,20 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
       <div class="card"><h2>Equipe do dia</h2>
         <div class="bar" style="margin-bottom:8px"><label>Situação<select id="diaFiltroSit"><option value="">Todas</option><option value="trab">Trabalhando</option><option value="folga">Folga</option><option value="aus">Ausentes</option></select></label></div>
         <div class="tbl" id="diaEquipe"></div></div>
+    </section>
+
+    <!-- ESCALA DO MÊS -->
+    <section id="t-mes" class="hidden">
+      <div class="bar no-print">
+        <label>Loja<select id="mesLoja" class="selLojaReal"></select></label>
+        <label>Mês<input type="month" id="mesMes"></label>
+        <label>Função<select id="mesFuncao"></select></label>
+        <button class="btn sec" onclick="restaurarMes()">Restaurar folgas padrão</button>
+        <button class="btn sec" onclick="window.print()">Imprimir</button>
+      </div>
+      <div class="legenda no-print small"><span class="cel c-T">T</span> trabalha &nbsp; <span class="cel c-F">F</span> folga &nbsp; <span class="cel c-FA">FA</span> falta &nbsp; <span class="cel c-AT">AT</span> atestado &nbsp; <span class="cel c-FE">FE</span> férias &nbsp; <span class="cel c-T aj">T</span> alterado pelo gerente &nbsp;·&nbsp; <b>Clique no dia para trocar trabalho ↔ folga.</b></div>
+      <div class="card mesCard"><h2 id="mesTitulo"></h2><div class="tbl mesTbl" id="mesGrade"></div></div>
+      <div class="card no-print" id="mesAvisos"></div>
     </section>
 
     <!-- ALERTAS -->
@@ -250,7 +284,7 @@ const DIAS=["dom","seg","ter","qua","qui","sex","sáb"];
 const TIPO={falta:"Falta",atestado:"Atestado",ferias:"Férias"};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let EU=null, LOJAS=[], COLABS=[], OCS=[];
+let EU=null, LOJAS=[], COLABS=[], OCS=[], AJ={}, AJ_RANGE=[];
 
 // ---------- datas ----------
 const hojeISO=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -266,6 +300,10 @@ function toast(m){const t=document.createElement("div");t.className="toast";t.te
 // ---------- regra da escala ----------
 function escalado(c,dia){
   if(!c.ativo) return false;
+  const a=AJ[c.id+"|"+dia]; if(a) return a==="T";
+  return padrao(c,dia);
+}
+function padrao(c,dia){
   if(c.jornada==="12x36"){ if(!c.data_base_12x36) return true; return ((diffDias(dia,c.data_base_12x36))%2+2)%2===0; }
   return !(c.folgas||[]).includes(parse(dia).getDay());
 }
@@ -312,6 +350,15 @@ async function carregarBase(){
   const ini=addDias(hojeISO(),-60);
   const o=await sb.from("escala_ocorrencias").select("*").gte("data_fim",ini).order("criado_em",{ascending:false}).limit(5000);
   OCS=o.data||[]; atualizarBadge();
+  await carregarAjustes(addDias(hojeISO(),-60),addDias(hojeISO(),120));
+}
+async function carregarAjustes(ini,fim){
+  if(AJ_RANGE.length&&ini>=AJ_RANGE[0]&&fim<=AJ_RANGE[1])return;
+  let de=0,todos=[];
+  while(true){const r=await sb.from("escala_dias").select("colaborador_id,data,status").gte("data",ini).lte("data",fim).range(de,de+999);
+    if(r.error||!r.data)break;todos=todos.concat(r.data);if(r.data.length<1000)break;de+=1000}
+  todos.forEach(x=>AJ[x.colaborador_id+"|"+x.data]=x.status);
+  AJ_RANGE=AJ_RANGE.length?[ini<AJ_RANGE[0]?ini:AJ_RANGE[0],fim>AJ_RANGE[1]?fim:AJ_RANGE[1]]:[ini,fim];
 }
 
 function montarSelects(){
@@ -325,7 +372,8 @@ function montarSelects(){
   $$(".selHora").forEach(s=>s.innerHTML=h);
   $("#chHab").innerHTML=FUNCOES.map(f=>`<label><input type="checkbox" name="hab" value="${f}"> ${f}</label>`).join("");
   $("#chFolgas").innerHTML=DIAS.map((d,i)=>`<label><input type="checkbox" name="folga" value="${i}"> ${d}</label>`).join("");
-  $("#diaData").value=hojeISO(); $("#feIni").value=hojeISO();
+  $("#diaData").value=hojeISO(); $("#feIni").value=hojeISO(); $("#mesMes").value=hojeISO().slice(0,7);
+  $("#mesFuncao").innerHTML='<option value="">Todas</option>'+FUNCOES.map(f=>`<option>${f}</option>`).join("");
 }
 
 function ligarEventos(){
@@ -335,11 +383,12 @@ function ligarEventos(){
   ["#feLoja","#feIni","#feMeses"].forEach(s=>$(s).onchange=renderFerias);
   ["#coLoja","#coFuncao"].forEach(s=>$(s).onchange=renderColabs); $("#coBusca").oninput=renderColabs;
   $("#ocLoja").onchange=preencherColabOc;
+  ["#mesLoja","#mesMes","#mesFuncao"].forEach(s=>$(s).onchange=renderMes);
 }
 function irPara(t){
   $$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
   $$("main>section").forEach(s=>s.classList.toggle("hidden",s.id!=="t-"+t));
-  ({dia:renderDia,alertas:renderAlertas,lancar:renderLancar,ferias:renderFerias,colab:renderColabs,usuarios:renderUsuarios}[t])();
+  ({dia:renderDia,mes:renderMes,alertas:renderAlertas,lancar:renderLancar,ferias:renderFerias,colab:renderColabs,usuarios:renderUsuarios}[t])();
   scrollTo(0,0);
 }
 
@@ -404,6 +453,59 @@ function cartaoOc(o,c){
   </div></div>`;
 }
 
+// ---------- ESCALA DO MÊS ----------
+const LETRA={falta:"FA",atestado:"AT",ferias:"FE"};
+async function renderMes(){
+  if(!$("#mesLoja").value)$("#mesLoja").value=EU.loja_id||LOJAS[0]?.id;
+  const lid=+$("#mesLoja").value, ym=$("#mesMes").value||hojeISO().slice(0,7), fn=$("#mesFuncao").value;
+  const [y,m]=ym.split("-").map(Number); const nd=new Date(y,m,0).getDate();
+  const dias=[...Array(nd)].map((_,i)=>ym+"-"+String(i+1).padStart(2,"0"));
+  await carregarAjustes(dias[0],dias[nd-1]);
+  const mesNome=new Date(y,m-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
+  $("#mesTitulo").textContent=`${lojaNome(lid)} — ${mesNome}`;
+  const cs=COLABS.filter(c=>c.ativo&&c.loja_id===lid&&(!fn||c.funcao===fn)).sort((a,b)=>FUNCOES.indexOf(a.funcao)-FUNCOES.indexOf(b.funcao)||a.nome.localeCompare(b.nome));
+  if(!cs.length){$("#mesGrade").innerHTML='<div class="empty">Nenhum colaborador ativo nesta loja.</div>';$("#mesAvisos").innerHTML="";return}
+  const we=d=>{const w=parse(d).getDay();return w===0||w===6};
+  const cab=`<tr><th class="nm">Colaborador</th>${dias.map(d=>`<th class="${we(d)?"we":""}">${DIAS[parse(d).getDay()].slice(0,1).toUpperCase()}<br>${+d.slice(8)}</th>`).join("")}<th>Folgas</th><th>Trab.</th></tr>`;
+  const avisos=[];const porDiaFuncao={};
+  let html="",funcAtual=null;
+  for(const c of cs){
+    if(c.funcao!==funcAtual){funcAtual=c.funcao;html+=`<tr class="sep"><td class="nm">${c.funcao}</td><td colspan="${nd+2}"></td></tr>`}
+    let folgas=0,trab=0,seq=0,maxSeq=0,domTrab=0,doms=0;
+    const cels=dias.map(d=>{
+      const o=ocDe(c.id,d); const a=AJ[c.id+"|"+d]; const t=escalado(c,d);
+      if(parse(d).getDay()===0){doms++;if(t&&!o)domTrab++}
+      if(o){seq=0;return `<td class="${we(d)?"we":""}" title="${TIPO[o.tipo]}"><span class="cel c-${LETRA[o.tipo]}">${LETRA[o.tipo]}</span></td>`}
+      if(t){trab++;seq++;maxSeq=Math.max(maxSeq,seq);(porDiaFuncao[d]=porDiaFuncao[d]||{})[c.funcao]=(porDiaFuncao[d][c.funcao]||0)+1}else{folgas++;seq=0}
+      return `<td class="clic ${we(d)?"we":""}" onclick="alternarDia(${c.id},'${d}')" title="${t?"Trabalha":"Folga"} — clique para trocar"><span class="cel c-${t?"T":"F"} ${a?"aj":""}">${t?"T":"F"}</span></td>`});
+    if(c.jornada!=="12x36"&&maxSeq>6)avisos.push(`<b>${esc(c.nome)}</b> trabalha ${maxSeq} dias seguidos sem folga.`);
+    if(c.jornada!=="12x36"&&doms>0&&domTrab===doms)avisos.push(`<b>${esc(c.nome)}</b> trabalha todos os domingos do mês — confira a regra de folga aos domingos da convenção coletiva.`);
+    html+=`<tr><td class="nm" title="${esc(c.nome)}"><b>${esc(c.nome)}</b><br><span class="muted" style="font-size:11px">${hm(c.hora_entrada)}–${hm(c.hora_saida)} · ${c.jornada}</span></td>${cels.join("")}<td class="tot">${folgas}</td><td class="tot">${trab}</td></tr>`;
+  }
+  const funcs=[...new Set(cs.map(c=>c.funcao))];
+  const rod=funcs.map(f=>`<tr class="rod"><td class="nm">${f} trabalhando</td>${dias.map(d=>{const v=(porDiaFuncao[d]||{})[f]||0;return `<td class="${we(d)?"we":""}" style="${v?"":"color:var(--falta)"}">${v}</td>`}).join("")}<td></td><td></td></tr>`).join("")
+   +`<tr class="rod"><td class="nm">Total trabalhando</td>${dias.map(d=>`<td class="${we(d)?"we":""}">${Object.values(porDiaFuncao[d]||{}).reduce((a,b)=>a+b,0)}</td>`).join("")}<td></td><td></td></tr>`;
+  $("#mesGrade").innerHTML=`<table class="grade">${cab}${html}${rod}</table>`;
+  $("#mesAvisos").innerHTML=avisos.length?`<h2>Atenção</h2><ul>${avisos.map(a=>`<li>${a}</li>`).join("")}</ul>`:'<div class="small muted">✓ Nenhum alerta de folga na escala deste mês.</div>';
+}
+async function alternarDia(cid,d){
+  const c=COLABS.find(x=>x.id===cid);const k=cid+"|"+d;const atual=escalado(c,d);const novo=atual?"F":"T";
+  let error;
+  if((novo==="T")===padrao(c,d)){({error}=await sb.from("escala_dias").delete().eq("colaborador_id",cid).eq("data",d));if(!error)delete AJ[k]}
+  else{({error}=await sb.from("escala_dias").upsert({colaborador_id:cid,data:d,status:novo,loja_id:c.loja_id}));if(!error)AJ[k]=novo}
+  if(error)return toast("Erro: "+error.message);
+  renderMes();
+}
+async function restaurarMes(){
+  const lid=+$("#mesLoja").value, ym=$("#mesMes").value;const [y,m]=ym.split("-").map(Number);const fim=ym+"-"+String(new Date(y,m,0).getDate()).padStart(2,"0");
+  if(!confirm(`Desfazer todas as alterações de ${lojaNome(lid)} neste mês e voltar às folgas padrão de cada jornada?`))return;
+  const {error}=await sb.from("escala_dias").delete().eq("loja_id",lid).gte("data",ym+"-01").lte("data",fim);
+  if(error)return toast("Erro: "+error.message);
+  const ids=new Set(COLABS.filter(c=>c.loja_id===lid).map(c=>c.id));
+  Object.keys(AJ).forEach(k=>{const[id,d]=k.split("|");if(ids.has(+id)&&d>=ym+"-01"&&d<=fim)delete AJ[k]});
+  toast("Escala restaurada");renderMes();
+}
+
 // ---------- ALERTAS ----------
 function atualizarBadge(){const n=OCS.filter(o=>!o.visto_em&&o.tipo!=="ferias").length;const b=$("#bAlertas");b.textContent=n;b.classList.toggle("hidden",!n||!ehGestor())}
 async function atualizarAlertas(){const ini=addDias(hojeISO(),-60);const o=await sb.from("escala_ocorrencias").select("*").gte("data_fim",ini).order("criado_em",{ascending:false}).limit(5000);
@@ -425,11 +527,11 @@ async function abrirCobertura(id){
   const o=OCS.find(x=>x.id===id), c=COLABS.find(x=>x.id===o.colaborador_id)||{};
   const dia=o.data_inicio>hojeISO()?o.data_inicio:(o.data_fim<hojeISO()?o.data_inicio:hojeISO());
   $("#cobCorpo").innerHTML="Buscando…";dCob.showModal();
-  const {data,error}=await sb.rpc("escala_cobertura_candidatos",{p_funcao:c.funcao,p_data:dia});
+  const {data,error}=await sb.rpc("escala_candidatos_cobertura",{p_funcao:c.funcao,p_data:dia});
   if(error){$("#cobCorpo").textContent="Erro: "+error.message;return}
   const ini=c.hora_entrada,fim=c.hora_saida;
   const cand=(data||[]).filter(x=>x.id!==c.id).map(x=>{
-    const esc_=escalado({...x,ativo:true},dia); const jaCobre=OCS.some(z=>z.cobertura_colaborador_id===x.id&&z.data_inicio<=dia&&z.data_fim>=dia);
+    const esc_=x.ajuste?x.ajuste==="T":escalado({...x,ativo:true},dia); const jaCobre=OCS.some(z=>z.cobertura_colaborador_id===x.id&&z.data_inicio<=dia&&z.data_fim>=dia);
     const sobrep=x.hora_entrada<fim&&x.hora_saida>ini; const mesmaLoja=x.loja_id===o.loja_id;
     // sobra na loja de origem: quantos da mesma função estão trabalhando lá
     const naOrigem=COLABS.filter(z=>z.loja_id===x.loja_id&&z.funcao===c.funcao&&situacao(z,dia).s==="trab").length;
