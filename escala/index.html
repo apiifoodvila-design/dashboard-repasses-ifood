@@ -155,7 +155,7 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
     <div class="who"><span id="quem"></span><button onclick="sair()">Sair</button></div>
   </header>
   <nav class="tabs" id="tabs">
-    <button data-t="dia" class="on">Painel do dia</button>
+    <button data-t="dia" class="on">Painel</button>
     <button data-t="mes">Escala</button>
     <button data-t="alertas">Alertas <span class="badge hidden" id="bAlertas">0</span></button>
     <button data-t="lancar">Lançar falta / atestado</button>
@@ -167,14 +167,15 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
     <!-- PAINEL DO DIA -->
     <section id="t-dia">
       <div class="bar">
-        <label>Data<input type="date" id="diaData"></label>
+        <span id="diaPeriodo" style="display:contents"></span>
         <label>Loja<select id="diaLoja" class="selLoja"></select></label>
       </div>
       <div class="kpis" id="diaKpis"></div>
-      <div class="card"><h2>Por função</h2><div class="tbl" id="diaFuncoes"></div></div>
+      <h2 id="diaTitulo" style="font:800 20px var(--fd);margin:0 0 12px"></h2>
+      <div class="card"><h2>Por função</h2><p class="small muted hidden" id="diaNotaPer" style="margin-top:-6px">No período, os números são em <b>dias</b> (ex.: 3 pessoas × 5 dias = 15 dias escalados).</p><div class="tbl" id="diaFuncoes"></div></div>
       <div class="card" id="cardMatriz"><h2>Por loja</h2><p class="small muted" style="margin-top:-6px">Presentes / escalados em cada função. Em vermelho, onde há ausência.</p><div class="tbl" id="diaMatriz"></div></div>
-      <div class="card"><h2>Ausentes no dia</h2><div id="diaAusentes"></div></div>
-      <div class="card"><h2>Equipe do dia</h2>
+      <div class="card"><h2 id="diaAusTit">Ausentes no dia</h2><div id="diaAusentes"></div></div>
+      <div class="card"><h2 id="diaEqTit">Equipe do dia</h2>
         <div class="bar" style="margin-bottom:8px"><label>Situação<select id="diaFiltroSit"><option value="">Todas</option><option value="trab">Trabalhando</option><option value="folga">Folga</option><option value="aus">Ausentes</option></select></label></div>
         <div class="tbl" id="diaEquipe"></div></div>
     </section>
@@ -201,7 +202,8 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
     <section id="t-alertas" class="hidden">
       <div class="bar">
         <label>Loja<select id="alLoja" class="selLoja"></select></label>
-        <label>Mostrar<select id="alFiltro"><option value="novos">Não vistos</option><option value="todos">Últimos 30 dias</option></select></label>
+        <span id="alPeriodo" style="display:contents"></span>
+        <label>Mostrar<select id="alFiltro"><option value="novos">Só não vistos</option><option value="todos">Todos do período</option></select></label>
       </div>
       <div id="alLista"></div>
     </section>
@@ -228,8 +230,7 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
     <section id="t-ferias" class="hidden">
       <div class="bar">
         <label>Loja<select id="feLoja" class="selLoja"></select></label>
-        <label>A partir de<input type="date" id="feIni"></label>
-        <label>Meses<select id="feMeses"><option>2</option><option selected>3</option><option>6</option><option>12</option></select></label>
+<span id="fePeriodo" style="display:contents"></span>
       </div>
       <div class="kpis" id="feKpis"></div>
       <div class="card"><h2>Calendário de férias</h2><div class="tbl" id="feCal"></div></div>
@@ -421,15 +422,16 @@ function montarSelects(){
   $$(".selHora").forEach(s=>s.innerHTML=h);
   $("#chHab").innerHTML=FUNCOES.map(f=>`<label><input type="checkbox" name="hab" value="${f}"> ${f}</label>`).join("");
   $("#chFolgas").innerHTML=DIAS.map((d,i)=>`<label><input type="checkbox" name="folga" value="${i}"> ${d}</label>`).join("");
-  $("#diaData").value=hojeISO(); $("#feIni").value=hojeISO(); $("#mesRef").value=hojeISO();$("#mesIni").value=hojeISO();$("#mesFim").value=addDias(hojeISO(),13);
+  $("#mesRef").value=hojeISO();$("#mesIni").value=hojeISO();$("#mesFim").value=addDias(hojeISO(),13);
   $("#mesFuncao").innerHTML='<option value="">Todas</option>'+FUNCOES.map(f=>`<option>${f}</option>`).join("");
 }
 
 function ligarEventos(){
   $$("#tabs button").forEach(b=>b.onclick=()=>irPara(b.dataset.t));
-  ["#diaData","#diaLoja","#diaFiltroSit"].forEach(s=>$(s).onchange=renderDia);
+  ["#diaLoja","#diaFiltroSit"].forEach(s=>$(s).onchange=renderDia);
+  montarPeriodo("dia","dia",renderDia); montarPeriodo("al","mes",renderAlertas); montarPeriodo("fe","ano",renderFerias);
   ["#alLoja","#alFiltro"].forEach(s=>$(s).onchange=renderAlertas);
-  ["#feLoja","#feIni","#feMeses"].forEach(s=>$(s).onchange=renderFerias);
+  ["#feLoja"].forEach(s=>$(s).onchange=renderFerias);
   ["#coLoja","#coFuncao"].forEach(s=>$(s).onchange=renderColabs); $("#coBusca").oninput=renderColabs;
   $("#ocLoja").onchange=preencherColabOc;
   ["#mesLoja","#mesPeriodo","#mesRef","#mesFuncao","#mesIni","#mesFim"].forEach(s=>$(s).onchange=renderMes);
@@ -441,47 +443,100 @@ function irPara(t){
   scrollTo(0,0);
 }
 
+// ---------- PERÍODO (usado em todas as telas) ----------
+function montarPeriodo(p,def,cb){
+  const el=$("#"+p+"Periodo");
+  el.innerHTML=`<label>Período<select id="${p}Per"><option value="dia">Dia</option><option value="semana">Semana</option><option value="mes">Mês</option><option value="ano">Ano</option><option value="periodo">Escolher período</option></select></label>
+  <label id="${p}wRef">Data<input type="date" id="${p}Ref"></label>
+  <label id="${p}wIni" class="hidden">Início<input type="date" id="${p}Ini"></label>
+  <label id="${p}wFim" class="hidden">Fim<input type="date" id="${p}Fim"></label>
+  <div style="display:flex;gap:4px"><button type="button" class="btn sec" data-n="-1" title="Anterior">◀</button><button type="button" class="btn sec" data-n="0">Hoje</button><button type="button" class="btn sec" data-n="1" title="Próximo">▶</button></div>`;
+  $("#"+p+"Per").value=def;$("#"+p+"Ref").value=hojeISO();$("#"+p+"Ini").value=hojeISO();$("#"+p+"Fim").value=addDias(hojeISO(),6);
+  ["Per","Ref","Ini","Fim"].forEach(k=>$("#"+p+k).onchange=cb);
+  el.querySelectorAll("button[data-n]").forEach(b=>b.onclick=()=>{navPeriodo(p,+b.dataset.n);cb()});
+}
+function periodo(p){
+  const per=$("#"+p+"Per").value, ref=$("#"+p+"Ref").value||hojeISO(), d=parse(ref), custom=per==="periodo";
+  $("#"+p+"wRef").classList.toggle("hidden",custom);$("#"+p+"wIni").classList.toggle("hidden",!custom);$("#"+p+"wFim").classList.toggle("hidden",!custom);
+  let ini,fim,titulo;
+  if(custom){ini=$("#"+p+"Ini").value||hojeISO();fim=$("#"+p+"Fim").value||ini;if(fim<ini){[ini,fim]=[fim,ini];$("#"+p+"Ini").value=ini;$("#"+p+"Fim").value=fim}titulo=`De ${br(ini)} a ${br(fim)}`}
+  else if(per==="dia"){ini=fim=ref;titulo=d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})}
+  else if(per==="semana"){const a=new Date(d);a.setDate(d.getDate()-((d.getDay()+6)%7));ini=iso(a);fim=addDias(ini,6);titulo=`Semana de ${br(ini)} a ${br(fim)}`}
+  else if(per==="mes"){ini=iso(new Date(d.getFullYear(),d.getMonth(),1));fim=iso(new Date(d.getFullYear(),d.getMonth()+1,0));titulo=new Date(d.getFullYear(),d.getMonth(),1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"})}
+  else {ini=d.getFullYear()+"-01-01";fim=d.getFullYear()+"-12-31";titulo="Ano de "+d.getFullYear()}
+  const n=diffDias(fim,ini)+1;
+  return {per,ini,fim,titulo,n,dias:[...Array(Math.min(n,400))].map((_,i)=>addDias(ini,i))};
+}
+function navPeriodo(p,n){const per=$("#"+p+"Per").value;
+  if(per==="periodo"){const a=$("#"+p+"Ini").value||hojeISO(),b=$("#"+p+"Fim").value||a,len=diffDias(b,a)+1;
+    if(n===0){$("#"+p+"Ini").value=hojeISO();$("#"+p+"Fim").value=addDias(hojeISO(),len-1)}else{$("#"+p+"Ini").value=addDias(a,n*len);$("#"+p+"Fim").value=addDias(b,n*len)}return}
+  let d=parse($("#"+p+"Ref").value||hojeISO());
+  if(n===0)d=parse(hojeISO());else if(per==="dia")d.setDate(d.getDate()+n);else if(per==="semana")d.setDate(d.getDate()+7*n);else if(per==="mes")d=new Date(d.getFullYear(),d.getMonth()+n,1);else d=new Date(d.getFullYear()+n,0,1);
+  $("#"+p+"Ref").value=iso(d)}
+let OC_RANGE=[];
+async function carregarOcorrencias(ini,fim){
+  if(OC_RANGE.length&&ini>=OC_RANGE[0]&&fim<=OC_RANGE[1])return;
+  const r=await sb.from("escala_ocorrencias").select("*").gte("data_fim",ini).lte("data_inicio",fim).order("criado_em",{ascending:false}).limit(10000);
+  if(r.data){const ids=new Set(OCS.map(o=>o.id));r.data.forEach(o=>{if(!ids.has(o.id))OCS.push(o)});OCS.sort((a,b)=>b.criado_em.localeCompare(a.criado_em))}
+  OC_RANGE=OC_RANGE.length?[ini<OC_RANGE[0]?ini:OC_RANGE[0],fim>OC_RANGE[1]?fim:OC_RANGE[1]]:[ini,fim];
+}
+async function prepararPeriodo(P){await Promise.all([carregarOcorrencias(P.ini,P.fim),carregarAjustes(P.ini,P.fim)])}
+
 // ---------- PAINEL DO DIA ----------
 function colabsDaLoja(lid){return COLABS.filter(c=>c.ativo&&(!lid||c.loja_id===+lid))}
-function renderDia(){
-  const dia=$("#diaData").value||hojeISO(), lid=$("#diaLoja").value;
-  const base=colabsDaLoja(lid).map(c=>({c,...situacao(c,dia)}));
-  // quem veio de outra loja cobrir nesta
-  const vindos=COLABS.filter(c=>c.ativo&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=dia&&o.data_fim>=dia&&(!lid||o.loja_id===+lid)&&o.loja_id!==c.loja_id));
-  const cnt=k=>base.filter(x=>x.s===k).length;
-  const escal=base.filter(x=>x.s!=="folga"&&x.s!=="ferias"&&x.s!=="cobrindo").length;
-  $("#diaKpis").innerHTML=[
-    ["Escalados",escal,""],["Trabalhando",cnt("trab")+vindos.length,"ok"],["Faltas",cnt("falta"),"falta"],["Atestados",cnt("atestado"),"atest"],["Férias",cnt("ferias"),"ferias"],["De folga",cnt("folga"),"folga"]
-  ].map(([t,v,k])=>`<div class="kpi ${k}"><span>${t}</span><strong>${v}</strong></div>`).join("");
-  // por função
+async function renderDia(){
+  const P=periodo("dia"); await prepararPeriodo(P);
+  const lid=$("#diaLoja").value, um=P.n===1, dias=P.dias;
+  $("#diaTitulo").textContent=(lid?lojaNome(+lid)+" — ":"")+P.titulo;
+  $("#diaNotaPer").classList.toggle("hidden",um);
+  $("#diaAusTit").textContent=um?"Ausentes no dia":"Faltas e atestados no período";
+  $("#diaEqTit").textContent=um?"Equipe do dia":"Equipe no período";
+  const cs=colabsDaLoja(lid);
+  // contagens em dias-pessoa
+  const Z=()=>({esc:0,trab:0,falta:0,atestado:0,ferias:0,folga:0,vin:0});
+  const tot=Z(), porF={}, porLF={}, porC={};
+  const somar=(o,s)=>{if(s==="trab")o.trab++;else if(s==="falta")o.falta++;else if(s==="atestado")o.atestado++;else if(s==="ferias")o.ferias++;else if(s==="folga")o.folga++;if(s==="trab"||s==="falta"||s==="atestado")o.esc++};
+  for(const d of dias){
+    for(const c of cs){const s=situacao(c,d).s;if(s==="cobrindo")continue;
+      somar(tot,s);somar(porF[c.funcao]=porF[c.funcao]||Z(),s);const k=c.loja_id+"|"+c.funcao;somar(porLF[k]=porLF[k]||Z(),s);somar(porC[c.id]=porC[c.id]||Z(),s)}
+    // quem veio de outra loja cobrir
+    for(const o of OCS){if(!o.cobertura_colaborador_id||o.data_inicio>d||o.data_fim<d||(lid&&o.loja_id!==+lid))continue;const c=COLABS.find(x=>x.id===o.cobertura_colaborador_id);if(!c||c.loja_id===o.loja_id)continue;
+      tot.trab++;tot.vin++;(porF[c.funcao]=porF[c.funcao]||Z()).trab++;porF[c.funcao].vin++;const k=o.loja_id+"|"+c.funcao;(porLF[k]=porLF[k]||Z()).trab++}
+  }
+  const u=um?"":" (dias)";
+  $("#diaKpis").innerHTML=[["Escalados"+u,tot.esc,""],["Trabalhando"+u,tot.trab,"ok"],["Faltas"+u,tot.falta,"falta"],["Atestados"+u,tot.atestado,"atest"],["Férias"+u,tot.ferias,"ferias"],["De folga"+u,tot.folga,"folga"]]
+    .map(([t,v,k])=>`<div class="kpi ${k}"><span>${t}</span><strong>${v}</strong></div>`).join("");
   const z=v=>v?v:`<span class="zero">0</span>`;
-  const linhas=FUNCOES.map(f=>{const b=base.filter(x=>x.c.funcao===f);const k=s=>b.filter(x=>x.s===s).length;const vin=vindos.filter(c=>c.funcao===f).length;
-    const esc_=b.filter(x=>!["folga","ferias","cobrindo"].includes(x.s)).length;
-    return {f,esc_,trab:k("trab")+vin,falta:k("falta"),atest:k("atestado"),fer:k("ferias"),folga:k("folga"),vin}}).filter(r=>r.esc_+r.fer+r.folga+r.vin>0);
+  const linhas=FUNCOES.filter(f=>porF[f]).map(f=>({f,...porF[f]}));
   $("#diaFuncoes").innerHTML=linhas.length?`<table><tr><th>Função</th><th class="n">Escalados</th><th class="n">Trabalhando</th><th class="n">Faltas</th><th class="n">Atestados</th><th class="n">Férias</th><th class="n">Folga</th></tr>
-    ${linhas.map(r=>`<tr><td><b>${r.f}</b></td><td class="n">${z(r.esc_)}</td><td class="n">${z(r.trab)}${r.vin?` <span class="pill p-cob">+${r.vin} cobertura</span>`:""}</td><td class="n">${r.falta?`<b style="color:var(--falta)">${r.falta}</b>`:z(0)}</td><td class="n">${r.atest?`<b style="color:var(--atest)">${r.atest}</b>`:z(0)}</td><td class="n">${z(r.fer)}</td><td class="n">${z(r.folga)}</td></tr>`).join("")}</table>`:'<div class="empty">Nenhum colaborador cadastrado nesta loja.</div>';
-  // matriz por loja (só com "todas")
+    ${linhas.map(r=>`<tr><td><b>${r.f}</b></td><td class="n">${z(r.esc)}</td><td class="n">${z(r.trab)}${r.vin?` <span class="pill p-cob">+${r.vin} cobertura</span>`:""}</td><td class="n">${r.falta?`<b style="color:var(--falta)">${r.falta}</b>`:z(0)}</td><td class="n">${r.atestado?`<b style="color:var(--atest)">${r.atestado}</b>`:z(0)}</td><td class="n">${z(r.ferias)}</td><td class="n">${z(r.folga)}</td></tr>`).join("")}</table>`:'<div class="empty">Nenhum colaborador cadastrado nesta loja.</div>';
   $("#cardMatriz").classList.toggle("hidden",!!lid||!ehGestor());
   if(!lid&&ehGestor()){
     const lojas=LOJAS.filter(l=>l.ativo&&COLABS.some(c=>c.loja_id===l.id));
-    $("#diaMatriz").innerHTML=lojas.length?`<table class="mat"><tr><th>Loja</th>${FUNCOES.map(f=>`<th class="n">${f}</th>`).join("")}<th class="n">Ausentes</th></tr>
-    ${lojas.map(l=>{const b=base.filter(x=>x.c.loja_id===l.id);let aus=0;
-      const cel=FUNCOES.map(f=>{const bf=b.filter(x=>x.c.funcao===f);const e=bf.filter(x=>!["folga","ferias","cobrindo"].includes(x.s)).length;
-        const vin=vindos.filter(c=>c.funcao===f&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.loja_id===l.id&&o.data_inicio<=dia&&o.data_fim>=dia)).length;
-        const p=bf.filter(x=>x.s==="trab").length+vin;const a=bf.filter(x=>x.s==="falta"||x.s==="atestado").length;aus+=a;
-        return e||p?`<td class="n ${p<e?"bad":""}">${p}/${e}</td>`:`<td class="n zero">–</td>`}).join("");
+    $("#diaMatriz").innerHTML=lojas.length?`<table class="mat"><tr><th>Loja</th>${FUNCOES.map(f=>`<th class="n">${f}</th>`).join("")}<th class="n">Ausências${u}</th></tr>
+    ${lojas.map(l=>{let aus=0;const cel=FUNCOES.map(f=>{const x=porLF[l.id+"|"+f];if(!x||(!x.esc&&!x.trab))return `<td class="n zero">–</td>`;aus+=x.falta+x.atestado;return `<td class="n ${x.trab<x.esc?"bad":""}">${x.trab}/${x.esc}</td>`}).join("");
       return `<tr><td><b>${esc(l.nome)}</b></td>${cel}<td class="n">${aus?`<b style="color:var(--falta)">${aus}</b>`:'<span class="zero">0</span>'}</td></tr>`}).join("")}</table>`:'<div class="empty">Cadastre colaboradores para ver o quadro por loja.</div>';
   }
-  // ausentes
-  const aus=base.filter(x=>x.s==="falta"||x.s==="atestado");
-  $("#diaAusentes").innerHTML=aus.length?aus.map(x=>cartaoOc(x.o,x.c)).join(""):'<div class="empty">Nenhuma falta ou atestado neste dia. 👍</div>';
+  // ocorrências do período
+  const ids=new Set(cs.map(c=>c.id));
+  const aus=OCS.filter(o=>(o.tipo==="falta"||o.tipo==="atestado")&&ids.has(o.colaborador_id)&&o.data_inicio<=P.fim&&o.data_fim>=P.ini).sort((a,b)=>a.data_inicio.localeCompare(b.data_inicio));
+  $("#diaAusentes").innerHTML=aus.length?aus.map(o=>cartaoOc(o)).join(""):`<div class="empty">Nenhuma falta ou atestado ${um?"neste dia":"no período"}. 👍</div>`;
   // equipe
   const fs=$("#diaFiltroSit").value;
-  let eq=base.filter(x=>!fs||(fs==="trab"&&x.s==="trab")||(fs==="folga"&&x.s==="folga")||(fs==="aus"&&["falta","atestado","ferias"].includes(x.s)));
-  eq=eq.concat(fs&&fs!=="trab"?[]:vindos.map(c=>({c,s:"veio"})));
-  eq.sort((a,b)=>a.c.loja_id-b.c.loja_id||FUNCOES.indexOf(a.c.funcao)-FUNCOES.indexOf(b.c.funcao)||a.c.nome.localeCompare(b.c.nome));
-  $("#diaEquipe").innerHTML=eq.length?`<table><tr><th>Nome</th>${lid?"":"<th>Loja</th>"}<th>Função</th><th>Horário</th><th>Jornada</th><th>Situação</th></tr>
-   ${eq.map(x=>`<tr><td>${esc(x.c.nome)}</td>${lid?"":`<td>${esc(lojaNome(x.c.loja_id))}</td>`}<td>${x.c.funcao}</td><td>${hm(x.c.hora_entrada)}–${hm(x.c.hora_saida)}</td><td>${x.c.jornada}</td><td>${x.s==="veio"?`<span class="pill p-cob">Cobrindo (vem de ${esc(lojaNome(x.c.loja_id))})</span>`:pill(x.s)}</td></tr>`).join("")}</table>`:'<div class="empty">Ninguém nesta situação.</div>';
+  if(um){
+    const d=dias[0];const base=cs.map(c=>({c,...situacao(c,d)}));
+    const vindos=COLABS.filter(c=>c.ativo&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=d&&o.data_fim>=d&&(!lid||o.loja_id===+lid)&&o.loja_id!==c.loja_id));
+    let eq=base.filter(x=>!fs||(fs==="trab"&&x.s==="trab")||(fs==="folga"&&x.s==="folga")||(fs==="aus"&&["falta","atestado","ferias"].includes(x.s)));
+    eq=eq.concat(fs&&fs!=="trab"?[]:vindos.map(c=>({c,s:"veio"})));
+    eq.sort((a,b)=>numLoja(lojaNome(a.c.loja_id))-numLoja(lojaNome(b.c.loja_id))||FUNCOES.indexOf(a.c.funcao)-FUNCOES.indexOf(b.c.funcao)||a.c.nome.localeCompare(b.c.nome));
+    $("#diaEquipe").innerHTML=eq.length?`<table><tr><th>Nome</th>${lid?"":"<th>Loja</th>"}<th>Função</th><th>Horário</th><th>Jornada</th><th>Situação</th></tr>
+     ${eq.map(x=>`<tr><td>${esc(x.c.nome)}</td>${lid?"":`<td>${esc(lojaNome(x.c.loja_id))}</td>`}<td>${x.c.funcao}</td><td>${hm(x.c.hora_entrada)}–${hm(x.c.hora_saida)}</td><td>${x.c.jornada}</td><td>${x.s==="veio"?`<span class="pill p-cob">Cobrindo (vem de ${esc(lojaNome(x.c.loja_id))})</span>`:pill(x.s)}</td></tr>`).join("")}</table>`:'<div class="empty">Ninguém nesta situação.</div>';
+  } else {
+    let eq=cs.map(c=>({c,t:porC[c.id]||Z()})).filter(x=>!fs||(fs==="trab"&&x.t.trab)||(fs==="folga"&&x.t.folga)||(fs==="aus"&&(x.t.falta+x.t.atestado+x.t.ferias)));
+    eq.sort((a,b)=>numLoja(lojaNome(a.c.loja_id))-numLoja(lojaNome(b.c.loja_id))||FUNCOES.indexOf(a.c.funcao)-FUNCOES.indexOf(b.c.funcao)||a.c.nome.localeCompare(b.c.nome));
+    $("#diaEquipe").innerHTML=eq.length?`<table><tr><th>Nome</th>${lid?"":"<th>Loja</th>"}<th>Função</th><th>Jornada</th><th class="n">Trabalhou</th><th class="n">Folgas</th><th class="n">Faltas</th><th class="n">Atestados</th><th class="n">Férias</th></tr>
+     ${eq.map(x=>`<tr><td>${esc(x.c.nome)}</td>${lid?"":`<td>${esc(lojaNome(x.c.loja_id))}</td>`}<td>${x.c.funcao}</td><td>${x.c.jornada}</td><td class="n">${z(x.t.trab)}</td><td class="n">${z(x.t.folga)}</td><td class="n">${x.t.falta?`<b style="color:var(--falta)">${x.t.falta}</b>`:z(0)}</td><td class="n">${x.t.atestado?`<b style="color:var(--atest)">${x.t.atestado}</b>`:z(0)}</td><td class="n">${z(x.t.ferias)}</td></tr>`).join("")}</table>`:'<div class="empty">Ninguém nesta situação.</div>';
+  }
 }
 
 // ---------- cartão de ocorrência ----------
@@ -600,10 +655,12 @@ function atualizarBadge(){const n=OCS.filter(o=>!o.visto_em&&o.tipo!=="ferias").
 async function atualizarAlertas(){const ini=addDias(hojeISO(),-60);const o=await sb.from("escala_ocorrencias").select("*").gte("data_fim",ini).order("criado_em",{ascending:false}).limit(5000);
   if(o.data){const antes=OCS.filter(x=>!x.visto_em).length;OCS=o.data;const dep=OCS.filter(x=>!x.visto_em).length;atualizarBadge();if(ehGestor()&&dep>antes)toast("Novo lançamento de falta/atestado");
    const t=$$("#tabs button").find(b=>b.classList.contains("on")).dataset.t;if(t==="alertas")renderAlertas();if(t==="dia")renderDia();}}
-function renderAlertas(){
-  const lid=$("#alLoja").value, f=$("#alFiltro").value, lim=addDias(hojeISO(),-30);
-  let l=OCS.filter(o=>(!lid||o.loja_id===+lid)&&(f==="novos"?(!o.visto_em&&o.tipo!=="ferias"):o.criado_em.slice(0,10)>=lim));
-  $("#alLista").innerHTML=l.length?l.map(o=>cartaoOc(o)).join(""):`<div class="card empty">${f==="novos"?"Nenhum alerta novo. Tudo em dia!":"Nenhum lançamento nos últimos 30 dias."}</div>`;
+async function renderAlertas(){
+  const P=periodo("al"); await carregarOcorrencias(P.ini,P.fim);
+  const lid=$("#alLoja").value, f=$("#alFiltro").value;
+  let l=OCS.filter(o=>(!lid||o.loja_id===+lid)&&o.data_inicio<=P.fim&&o.data_fim>=P.ini&&(f==="novos"?(!o.visto_em&&o.tipo!=="ferias"):true));
+  const resumo=`<p class="small muted" style="margin:0 0 10px">${P.titulo} · ${l.length} lançamento(s)</p>`;
+  $("#alLista").innerHTML=resumo+(l.length?l.map(o=>cartaoOc(o)).join(""):`<div class="card empty">${f==="novos"?"Nenhum alerta não visto neste período. Tudo em dia!":"Nenhum lançamento neste período."}</div>`);
 }
 async function marcarVisto(id){const {error}=await sb.from("escala_ocorrencias").update({visto_por:EU.user_id,visto_em:new Date().toISOString()}).eq("id",id);
   if(error)return toast("Erro: "+error.message);const o=OCS.find(x=>x.id===id);o.visto_em=new Date().toISOString();atualizarBadge();rerender()}
@@ -668,17 +725,21 @@ $("#fOc").onsubmit=async e=>{e.preventDefault();const f=e.target;$("#erroOc").te
 };
 
 // ---------- FÉRIAS ----------
-function renderFerias(){
-  const lid=$("#feLoja").value, ini=$("#feIni").value||hojeISO(), meses=+$("#feMeses").value;
-  const d0=parse(ini);const fimD=new Date(d0.getFullYear(),d0.getMonth()+meses,0);const fim=iso(fimD);
+async function renderFerias(){
+  const P=periodo("fe"); await carregarOcorrencias(P.ini,P.fim);
+  const lid=$("#feLoja").value, ini=P.ini, fim=P.fim;
   const fe=OCS.filter(o=>o.tipo==="ferias"&&o.data_fim>=ini&&o.data_inicio<=fim&&(!lid||o.loja_id===+lid)).sort((a,b)=>a.data_inicio.localeCompare(b.data_inicio));
   const hoje=hojeISO();const agora=fe.filter(o=>o.data_inicio<=hoje&&o.data_fim>=hoje).length;
   const prox30=fe.filter(o=>o.data_inicio>hoje&&o.data_inicio<=addDias(hoje,30)).length;
-  $("#feKpis").innerHTML=`<div class="kpi ferias"><span>De férias hoje</span><strong>${agora}</strong></div><div class="kpi"><span>Começam nos próximos 30 dias</span><strong>${prox30}</strong></div><div class="kpi"><span>No período</span><strong>${fe.length}</strong></div>`;
+  const diasFe=fe.reduce((a,o)=>a+diffDias(o.data_fim<fim?o.data_fim:fim,o.data_inicio>ini?o.data_inicio:ini)+1,0);
+  $("#feKpis").innerHTML=`<div class="kpi"><span>Dias de férias no período</span><strong>${diasFe}</strong></div><div class="kpi ferias"><span>De férias hoje</span><strong>${agora}</strong></div><div class="kpi"><span>Começam nos próximos 30 dias</span><strong>${prox30}</strong></div><div class="kpi"><span>No período</span><strong>${fe.length}</strong></div>`;
   // calendário em semanas
-  const semanas=[];let s=parse(ini);s.setDate(s.getDate()-s.getDay()+1);while(iso(s)<=fim){semanas.push(iso(s));s.setDate(s.getDate()+7)}
-  $("#feCal").innerHTML=fe.length?`<table><tr><th>Colaborador</th>${semanas.map(w=>`<th class="n" style="font-size:11px">${brCurto(w)}</th>`).join("")}</tr>
-   ${fe.map(o=>{const c=COLABS.find(x=>x.id===o.colaborador_id)||{nome:"?"};return `<tr><td style="white-space:nowrap"><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao||"")} · ${esc(lojaNome(o.loja_id))}</span></td>${semanas.map(w=>{const we=addDias(w,6);const on=o.data_inicio<=we&&o.data_fim>=w;return `<td style="padding:4px 1px"><div style="height:18px;border-radius:4px;background:${on?"var(--ferias)":"transparent"}"></div></td>`}).join("")}</tr>`}).join("")}</table>`:'<div class="empty">Nenhuma férias lançada no período.</div>';
+  let cols=[];
+  if(P.n<=31)cols=P.dias.map(d=>[d,d,brCurto(d)]);
+  else if(P.n<=93){let a=parse(ini);a.setDate(a.getDate()-((a.getDay()+6)%7));while(iso(a)<=fim){const w=iso(a);cols.push([w,addDias(w,6),brCurto(w)]);a.setDate(a.getDate()+7)}}
+  else{let a=parse(ini);a=new Date(a.getFullYear(),a.getMonth(),1);while(iso(a)<=fim){const f=new Date(a.getFullYear(),a.getMonth()+1,0);cols.push([iso(a),iso(f),MESES[a.getMonth()]+(a.getFullYear()!==parse(ini).getFullYear()?"/"+String(a.getFullYear()).slice(2):"")]);a=new Date(a.getFullYear(),a.getMonth()+1,1)}}
+  $("#feCal").innerHTML=fe.length?`<table><tr><th>Colaborador</th>${cols.map(c=>`<th class="n" style="font-size:11px">${c[2]}</th>`).join("")}</tr>
+   ${fe.map(o=>{const c=COLABS.find(x=>x.id===o.colaborador_id)||{nome:"?"};return `<tr><td style="white-space:nowrap"><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao||"")} · ${esc(lojaNome(o.loja_id))}</span></td>${cols.map(([a,b])=>{const on=o.data_inicio<=b&&o.data_fim>=a;return `<td style="padding:4px 1px"><div style="height:18px;border-radius:4px;background:${on?"var(--ferias)":"transparent"}"></div></td>`}).join("")}</tr>`}).join("")}</table>`:'<div class="empty">Nenhuma férias lançada no período.</div>';
   $("#feLista").innerHTML=fe.length?`<table><tr><th>Colaborador</th><th>Loja</th><th>Função</th><th>Início</th><th>Fim</th><th class="n">Dias</th><th>Situação</th></tr>${fe.map(o=>{const c=COLABS.find(x=>x.id===o.colaborador_id)||{};const st=o.data_fim<hoje?"Encerrada":o.data_inicio<=hoje?"Em férias":"Programada";
     return `<tr><td>${esc(c.nome)}</td><td>${esc(lojaNome(o.loja_id))}</td><td>${esc(c.funcao)}</td><td>${br(o.data_inicio)}</td><td>${br(o.data_fim)}</td><td class="n">${diffDias(o.data_fim,o.data_inicio)+1}</td><td>${st==="Em férias"?pill("ferias"):st}</td></tr>`}).join("")}</table>`:"";
 }
