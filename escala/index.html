@@ -108,7 +108,13 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
       <button class="btn">Entrar</button>
       <div class="erro" id="erroLogin"></div>
     </form>
-    <p class="small muted" style="margin-top:18px">Primeiro acesso? <a href="#" id="lnkCriar">Criar conta</a></p>
+    <p class="small muted" style="margin-top:14px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><span>Primeiro acesso? <a href="#" id="lnkCriar">Criar conta</a></span><a href="#" id="lnkEsqueci">Esqueci minha senha</a></p>
+    <form id="fEsqueci" class="hidden">
+      <div class="small">Informe seu e-mail. Vamos enviar um link para você criar uma senha nova.</div>
+      <input type="email" name="email" placeholder="E-mail" required>
+      <button class="btn">Enviar link de recuperação</button>
+      <div class="small" id="msgEsqueci"></div>
+    </form>
     <form id="fCriar" class="hidden">
       <input name="nome" placeholder="Seu nome" required>
       <select name="loja" class="selCadLoja" required><option value="">Sua loja…</option></select>
@@ -118,6 +124,16 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
       <div class="erro" id="erroCriar"></div>
     </form>
   </div>
+</section>
+
+<section id="telaNovaSenha" class="login hidden">
+  <div class="card"><h1>Criar nova senha</h1>
+    <form id="fNovaSenha">
+      <input type="password" name="s1" placeholder="Nova senha (mín. 6 caracteres)" minlength="6" required autocomplete="new-password">
+      <input type="password" name="s2" placeholder="Repita a nova senha" minlength="6" required autocomplete="new-password">
+      <button class="btn">Salvar nova senha</button>
+      <div class="erro" id="erroNovaSenha"></div>
+    </form></div>
 </section>
 
 <section id="telaPendente" class="login hidden">
@@ -140,7 +156,7 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
   </header>
   <nav class="tabs" id="tabs">
     <button data-t="dia" class="on">Painel do dia</button>
-    <button data-t="mes">Escala do mês</button>
+    <button data-t="mes">Escala</button>
     <button data-t="alertas">Alertas <span class="badge hidden" id="bAlertas">0</span></button>
     <button data-t="lancar">Lançar falta / atestado</button>
     <button data-t="ferias">Férias</button>
@@ -167,9 +183,11 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
     <section id="t-mes" class="hidden">
       <div class="bar no-print">
         <label>Loja<select id="mesLoja" class="selLojaReal"></select></label>
-        <label>Mês<input type="month" id="mesMes"></label>
+        <label>Período<select id="mesPeriodo"><option value="dia">Dia</option><option value="semana">Semana</option><option value="mes" selected>Mês</option><option value="ano">Ano</option></select></label>
+        <label>Data<input type="date" id="mesRef"></label>
+        <div style="display:flex;gap:4px"><button class="btn sec" onclick="navEscala(-1)" title="Anterior">◀</button><button class="btn sec" onclick="navEscala(0)">Hoje</button><button class="btn sec" onclick="navEscala(1)" title="Próximo">▶</button></div>
         <label>Função<select id="mesFuncao"></select></label>
-        <button class="btn sec" onclick="restaurarMes()">Restaurar folgas padrão</button>
+        <button class="btn sec" id="btRestaurar" onclick="restaurarMes()">Restaurar folgas padrão</button>
         <button class="btn sec" onclick="window.print()">Imprimir</button>
       </div>
       <div class="legenda no-print small"><span class="cel c-T">T</span> trabalha &nbsp; <span class="cel c-F">F</span> folga &nbsp; <span class="cel c-FA">FA</span> falta &nbsp; <span class="cel c-AT">AT</span> atestado &nbsp; <span class="cel c-FE">FE</span> férias &nbsp; <span class="cel c-T aj">T</span> alterado pelo gerente &nbsp;·&nbsp; <b>Clique no dia para trocar trabalho ↔ folga.</b></div>
@@ -327,7 +345,20 @@ const pill=s=>({trab:'<span class="pill p-trab">Trabalhando</span>',folga:'<span
 const ehGestor=()=>EU&&(EU.perfil==="gestor"||EU.perfil==="admin");
 
 // ---------- auth ----------
-$("#lnkCriar").onclick=e=>{e.preventDefault();$("#fCriar").classList.toggle("hidden")};
+$("#lnkCriar").onclick=e=>{e.preventDefault();$("#fEsqueci").classList.add("hidden");$("#fCriar").classList.toggle("hidden")};
+$("#lnkEsqueci").onclick=e=>{e.preventDefault();$("#fCriar").classList.add("hidden");$("#fEsqueci").classList.toggle("hidden");$("#fEsqueci").email.value=$("#fLogin").email.value};
+$("#fEsqueci").onsubmit=async e=>{e.preventDefault();const em=e.target.email.value.trim();const m=$("#msgEsqueci");m.textContent="Enviando…";m.style.color="";
+  const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
+  if(error){m.style.color="var(--falta)";m.textContent=/rate|limit|seconds/i.test(error.message)?"Muitas tentativas. Aguarde alguns minutos e tente de novo.":"Não foi possível enviar: "+error.message;return}
+  m.style.color="var(--ok)";m.innerHTML="<b>Pronto!</b> Se este e-mail tiver conta, você vai receber o link em alguns minutos. Confira também a caixa de spam.";};
+let RECUPERANDO=/type=recovery/.test(location.hash);
+sb.auth.onAuthStateChange(ev=>{if(ev==="PASSWORD_RECOVERY"){RECUPERANDO=true;mostrarNovaSenha()}});
+function mostrarNovaSenha(){["#telaLogin","#telaPendente","#app"].forEach(s=>$(s).classList.add("hidden"));$("#telaNovaSenha").classList.remove("hidden")}
+$("#fNovaSenha").onsubmit=async e=>{e.preventDefault();const f=e.target;$("#erroNovaSenha").textContent="";
+  if(f.s1.value!==f.s2.value)return $("#erroNovaSenha").textContent="As senhas não conferem.";
+  const {error}=await sb.auth.updateUser({password:f.s1.value});
+  if(error)return $("#erroNovaSenha").textContent="Erro: "+error.message;
+  RECUPERANDO=false;history.replaceState(null,"",location.pathname);$("#telaNovaSenha").classList.add("hidden");toast("Senha alterada!");iniciar();};
 $("#fLogin").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);$("#erroLogin").textContent="";
   const {error}=await sb.auth.signInWithPassword({email:f.get("email").trim(),password:f.get("senha")});
   if(error){$("#erroLogin").textContent="E-mail ou senha incorretos.";return} iniciar();};
@@ -346,6 +377,7 @@ async function sair(){await sb.auth.signOut();location.reload()}
 
 async function iniciar(){
   const {data:{session}}=await sb.auth.getSession();
+  if(RECUPERANDO&&session)return mostrarNovaSenha();
   ["#telaLogin","#telaPendente","#app"].forEach(s=>$(s).classList.add("hidden"));
   if(!session){lojasCadastro();$("#telaLogin").classList.remove("hidden");return}
   let {data:u}=await sb.from("escala_usuarios").select("*").eq("user_id",session.user.id).maybeSingle();
@@ -385,7 +417,7 @@ function montarSelects(){
   $$(".selHora").forEach(s=>s.innerHTML=h);
   $("#chHab").innerHTML=FUNCOES.map(f=>`<label><input type="checkbox" name="hab" value="${f}"> ${f}</label>`).join("");
   $("#chFolgas").innerHTML=DIAS.map((d,i)=>`<label><input type="checkbox" name="folga" value="${i}"> ${d}</label>`).join("");
-  $("#diaData").value=hojeISO(); $("#feIni").value=hojeISO(); $("#mesMes").value=hojeISO().slice(0,7);
+  $("#diaData").value=hojeISO(); $("#feIni").value=hojeISO(); $("#mesRef").value=hojeISO();
   $("#mesFuncao").innerHTML='<option value="">Todas</option>'+FUNCOES.map(f=>`<option>${f}</option>`).join("");
 }
 
@@ -396,7 +428,7 @@ function ligarEventos(){
   ["#feLoja","#feIni","#feMeses"].forEach(s=>$(s).onchange=renderFerias);
   ["#coLoja","#coFuncao"].forEach(s=>$(s).onchange=renderColabs); $("#coBusca").oninput=renderColabs;
   $("#ocLoja").onchange=preencherColabOc;
-  ["#mesLoja","#mesMes","#mesFuncao"].forEach(s=>$(s).onchange=renderMes);
+  ["#mesLoja","#mesPeriodo","#mesRef","#mesFuncao"].forEach(s=>$(s).onchange=renderMes);
 }
 function irPara(t){
   $$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
@@ -468,18 +500,30 @@ function cartaoOc(o,c){
 
 // ---------- ESCALA DO MÊS ----------
 const LETRA={falta:"FA",atestado:"AT",ferias:"FE"};
+function intervaloEscala(){
+  const per=$("#mesPeriodo").value, ref=$("#mesRef").value||hojeISO(), d=parse(ref);
+  if(per==="dia")return {dias:[ref],titulo:parse(ref).toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})};
+  if(per==="semana"){const ini=new Date(d);ini.setDate(d.getDate()-((d.getDay()+6)%7));const dias=[...Array(7)].map((_,i)=>addDias(iso(ini),i));return {dias,titulo:`Semana de ${br(dias[0])} a ${br(dias[6])}`}}
+  if(per==="ano"){const y=d.getFullYear();return {ano:y,dias:[],titulo:"Ano de "+y}}
+  const y=d.getFullYear(),m=d.getMonth()+1,nd=new Date(y,m,0).getDate(),ym=y+"-"+String(m).padStart(2,"0");
+  return {dias:[...Array(nd)].map((_,i)=>ym+"-"+String(i+1).padStart(2,"0")),titulo:new Date(y,m-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"})};
+}
+function navEscala(n){const per=$("#mesPeriodo").value;let d=parse($("#mesRef").value||hojeISO());
+  if(n===0)d=parse(hojeISO());else if(per==="dia")d.setDate(d.getDate()+n);else if(per==="semana")d.setDate(d.getDate()+7*n);else if(per==="mes")d=new Date(d.getFullYear(),d.getMonth()+n,1);else d=new Date(d.getFullYear()+n,0,1);
+  $("#mesRef").value=iso(d);renderMes()}
 async function renderMes(){
   if(!$("#mesLoja").value)$("#mesLoja").value=EU.loja_id||LOJAS[0]?.id;
-  const lid=+$("#mesLoja").value, ym=$("#mesMes").value||hojeISO().slice(0,7), fn=$("#mesFuncao").value;
-  const [y,m]=ym.split("-").map(Number); const nd=new Date(y,m,0).getDate();
-  const dias=[...Array(nd)].map((_,i)=>ym+"-"+String(i+1).padStart(2,"0"));
+  const lid=+$("#mesLoja").value, fn=$("#mesFuncao").value;
+  const R=intervaloEscala();
+  $("#btRestaurar").classList.toggle("hidden",!!R.ano);
+  $("#mesTitulo").textContent=`${lojaNome(lid)} — ${R.titulo}`;
+  if(R.ano)return renderAno(lid,fn,R.ano);
+  const dias=R.dias, nd=dias.length;
   await carregarAjustes(dias[0],dias[nd-1]);
-  const mesNome=new Date(y,m-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"});
-  $("#mesTitulo").textContent=`${lojaNome(lid)} — ${mesNome}`;
   const cs=COLABS.filter(c=>c.ativo&&c.loja_id===lid&&(!fn||c.funcao===fn)).sort((a,b)=>FUNCOES.indexOf(a.funcao)-FUNCOES.indexOf(b.funcao)||a.nome.localeCompare(b.nome));
   if(!cs.length){$("#mesGrade").innerHTML='<div class="empty">Nenhum colaborador ativo nesta loja.</div>';$("#mesAvisos").innerHTML="";return}
   const we=d=>{const w=parse(d).getDay();return w===0||w===6};
-  const cab=`<tr><th class="nm">Colaborador</th>${dias.map(d=>`<th class="${we(d)?"we":""}">${DIAS[parse(d).getDay()].slice(0,1).toUpperCase()}<br>${+d.slice(8)}</th>`).join("")}<th>Folgas</th><th>Trab.</th></tr>`;
+  const cab=`<tr><th class="nm">Colaborador</th>${dias.map(d=>`<th class="${we(d)?"we":""}">${nd<=7?DIAS[parse(d).getDay()]:DIAS[parse(d).getDay()].slice(0,1).toUpperCase()}<br>${nd<=7?brCurto(d):+d.slice(8)}</th>`).join("")}<th>Folgas</th><th>Trab.</th></tr>`;
   const avisos=[];const porDiaFuncao={};
   let html="",funcAtual=null;
   for(const c of cs){
@@ -492,15 +536,36 @@ async function renderMes(){
       if(t){trab++;seq++;maxSeq=Math.max(maxSeq,seq);(porDiaFuncao[d]=porDiaFuncao[d]||{})[c.funcao]=(porDiaFuncao[d][c.funcao]||0)+1}else{folgas++;seq=0}
       return `<td class="clic ${we(d)?"we":""}" onclick="alternarDia(${c.id},'${d}')" title="${t?"Trabalha":"Folga"} — clique para trocar"><span class="cel c-${t?"T":"F"} ${a?"aj":""}">${t?"T":"F"}</span></td>`});
     if(c.jornada!=="12x36"&&maxSeq>6)avisos.push(`<b>${esc(c.nome)}</b> trabalha ${maxSeq} dias seguidos sem folga.`);
-    if(c.jornada!=="12x36"&&doms>0&&domTrab===doms)avisos.push(`<b>${esc(c.nome)}</b> trabalha todos os domingos do mês — confira a regra de folga aos domingos da convenção coletiva.`);
+    if(nd>=28&&c.jornada!=="12x36"&&doms>0&&domTrab===doms)avisos.push(`<b>${esc(c.nome)}</b> trabalha todos os domingos do mês — confira a regra de folga aos domingos da convenção coletiva.`);
     html+=`<tr><td class="nm" title="${esc(c.nome)}"><b>${esc(c.nome)}</b><br><span class="muted" style="font-size:11px">${hm(c.hora_entrada)}–${hm(c.hora_saida)} · ${c.jornada}</span></td>${cels.join("")}<td class="tot">${folgas}</td><td class="tot">${trab}</td></tr>`;
   }
   const funcs=[...new Set(cs.map(c=>c.funcao))];
   const rod=funcs.map(f=>`<tr class="rod"><td class="nm">${f} trabalhando</td>${dias.map(d=>{const v=(porDiaFuncao[d]||{})[f]||0;return `<td class="${we(d)?"we":""}" style="${v?"":"color:var(--falta)"}">${v}</td>`}).join("")}<td></td><td></td></tr>`).join("")
    +`<tr class="rod"><td class="nm">Total trabalhando</td>${dias.map(d=>`<td class="${we(d)?"we":""}">${Object.values(porDiaFuncao[d]||{}).reduce((a,b)=>a+b,0)}</td>`).join("")}<td></td><td></td></tr>`;
   $("#mesGrade").innerHTML=`<table class="grade">${cab}${html}${rod}</table>`;
-  $("#mesAvisos").innerHTML=avisos.length?`<h2>Atenção</h2><ul>${avisos.map(a=>`<li>${a}</li>`).join("")}</ul>`:'<div class="small muted">✓ Nenhum alerta de folga na escala deste mês.</div>';
+  $("#mesAvisos").innerHTML=avisos.length?`<h2>Atenção</h2><ul>${avisos.map(a=>`<li>${a}</li>`).join("")}</ul>`:'<div class="small muted">✓ Nenhum alerta de folga na escala deste período.</div>';
 }
+const MESES=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+async function renderAno(lid,fn,y){
+  await carregarAjustes(y+"-01-01",y+"-12-31");
+  const cs=COLABS.filter(c=>c.ativo&&c.loja_id===lid&&(!fn||c.funcao===fn)).sort((a,b)=>FUNCOES.indexOf(a.funcao)-FUNCOES.indexOf(b.funcao)||a.nome.localeCompare(b.nome));
+  if(!cs.length){$("#mesGrade").innerHTML='<div class="empty">Nenhum colaborador ativo nesta loja.</div>';$("#mesAvisos").innerHTML="";return}
+  const meses=MESES.map((_,m)=>{const nd=new Date(y,m+1,0).getDate();return [...Array(nd)].map((_,i)=>y+"-"+String(m+1).padStart(2,"0")+"-"+String(i+1).padStart(2,"0"))});
+  let html="",funcAtual=null;const totM=MESES.map(()=>({f:0,fa:0,at:0,fe:0}));
+  for(const c of cs){
+    if(c.funcao!==funcAtual){funcAtual=c.funcao;html+=`<tr class="sep"><td class="nm">${c.funcao}</td><td colspan="13"></td></tr>`}
+    let tot={f:0,fa:0,at:0,fe:0};
+    const cels=meses.map((ds,m)=>{let f=0,fa=0,at=0,fe=0;
+      for(const d of ds){const o=ocDe(c.id,d);if(o){if(o.tipo==="falta")fa++;else if(o.tipo==="atestado")at++;else fe++}else if(!escalado(c,d))f++}
+      tot.f+=f;tot.fa+=fa;tot.at+=at;tot.fe+=fe;Object.assign(totM[m],{f:totM[m].f+f,fa:totM[m].fa+fa,at:totM[m].at+at,fe:totM[m].fe+fe});
+      return `<td class="clic" onclick="abrirMes(${y},${m})" title="${MESES[m]}: ${f} folgas, ${fa} faltas, ${at} atestados, ${fe} férias" style="padding:4px 3px;min-width:62px"><span style="font-weight:700">${f}F</span>${fa?` <span class="pill p-falta">${fa}</span>`:""}${at?` <span class="pill p-atestado">${at}</span>`:""}${fe?` <span class="pill p-ferias">${fe}</span>`:""}</td>`});
+    html+=`<tr><td class="nm"><b>${esc(c.nome)}</b><br><span class="muted" style="font-size:11px">${c.jornada}</span></td>${cels.join("")}<td class="tot" style="white-space:nowrap">${tot.f}F${tot.fa?" · "+tot.fa+" FA":""}${tot.at?" · "+tot.at+" AT":""}${tot.fe?" · "+tot.fe+" FE":""}</td></tr>`;
+  }
+  const rod=`<tr class="rod"><td class="nm">Total da equipe</td>${totM.map(t=>`<td style="padding:4px">${t.f}F${t.fa?`<br><span style="color:var(--falta)">${t.fa} FA</span>`:""}${t.at?`<br><span style="color:var(--atest)">${t.at} AT</span>`:""}${t.fe?`<br><span style="color:var(--ferias)">${t.fe} FE</span>`:""}</td>`).join("")}<td></td></tr>`;
+  $("#mesGrade").innerHTML=`<table class="grade"><tr><th class="nm">Colaborador</th>${MESES.map(m=>`<th>${m}</th>`).join("")}<th>Ano</th></tr>${html}${rod}</table>`;
+  $("#mesAvisos").innerHTML='<div class="small muted">Visão anual: dias de folga (F), faltas (vermelho), atestados (laranja) e férias (azul) por mês. Clique num mês para abrir a escala dele.</div>';
+}
+function abrirMes(y,m){$("#mesPeriodo").value="mes";$("#mesRef").value=iso(new Date(y,m,1));renderMes()}
 async function alternarDia(cid,d){
   const c=COLABS.find(x=>x.id===cid);const k=cid+"|"+d;const atual=escalado(c,d);const novo=atual?"F":"T";
   let error;
@@ -510,12 +575,12 @@ async function alternarDia(cid,d){
   renderMes();
 }
 async function restaurarMes(){
-  const lid=+$("#mesLoja").value, ym=$("#mesMes").value;const [y,m]=ym.split("-").map(Number);const fim=ym+"-"+String(new Date(y,m,0).getDate()).padStart(2,"0");
-  if(!confirm(`Desfazer todas as alterações de ${lojaNome(lid)} neste mês e voltar às folgas padrão de cada jornada?`))return;
-  const {error}=await sb.from("escala_dias").delete().eq("loja_id",lid).gte("data",ym+"-01").lte("data",fim);
+  const lid=+$("#mesLoja").value, R=intervaloEscala(); if(R.ano)return; const ini=R.dias[0],fim=R.dias[R.dias.length-1];
+  if(!confirm(`Desfazer todas as alterações de ${lojaNome(lid)} de ${br(ini)} a ${br(fim)} e voltar às folgas padrão de cada jornada?`))return;
+  const {error}=await sb.from("escala_dias").delete().eq("loja_id",lid).gte("data",ini).lte("data",fim);
   if(error)return toast("Erro: "+error.message);
   const ids=new Set(COLABS.filter(c=>c.loja_id===lid).map(c=>c.id));
-  Object.keys(AJ).forEach(k=>{const[id,d]=k.split("|");if(ids.has(+id)&&d>=ym+"-01"&&d<=fim)delete AJ[k]});
+  Object.keys(AJ).forEach(k=>{const[id,d]=k.split("|");if(ids.has(+id)&&d>=ini&&d<=fim)delete AJ[k]});
   toast("Escala restaurada");renderMes();
 }
 
@@ -685,13 +750,16 @@ async function renderUsuarios(){
   const optL='<option value="">—</option>'+LOJAS.map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join("");
   $("#usLista").innerHTML=`<table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Loja (gerente)</th><th></th></tr>${(data||[]).map(u=>`<tr><td><b>${esc(u.nome)}</b>${u.perfil==="pendente"?' <span class="pill p-atestado">Aguardando</span>':""}</td><td class="small">${esc(u.email)}</td>
    <td><select id="pf-${u.user_id}">${["pendente","gerente","gestor","admin"].map(p=>`<option ${p===u.perfil?"selected":""}>${p}</option>`).join("")}</select></td>
-   <td><select id="lj-${u.user_id}">${optL}</select></td><td><button class="btn sm" onclick="salvarUsuario('${u.user_id}')">Salvar</button></td></tr>`).join("")}</table>`;
+   <td><select id="lj-${u.user_id}">${optL}</select></td><td style="white-space:nowrap"><button class="btn sm" onclick="salvarUsuario('${u.user_id}')">Salvar</button> <button class="btn sm sec" onclick="redefinirSenha('${u.user_id}','${esc(u.nome)}')">Nova senha</button></td></tr>`).join("")}</table>`;
   (data||[]).forEach(u=>{const s=$("#lj-"+u.user_id);if(s)s.value=u.loja_id||""});
   $("#ljLista").innerHTML=`<table><tr><th>Loja</th><th class="n">Colaboradores</th><th>Ativa</th></tr>${LOJAS.map(l=>`<tr><td>${esc(l.nome)}</td><td class="n">${COLABS.filter(c=>c.loja_id===l.id&&c.ativo).length}</td><td><input type="checkbox" ${l.ativo?"checked":""} onchange="ativarLoja(${l.id},this.checked)" style="min-height:0"></td></tr>`).join("")}</table>`;
 }
 async function salvarUsuario(id){const perfil=$("#pf-"+id).value,loja=$("#lj-"+id).value;
   if(perfil==="gerente"&&!loja)return toast("Escolha a loja do gerente");
   const {error}=await sb.from("escala_usuarios").update({perfil,loja_id:loja?+loja:null}).eq("user_id",id);toast(error?"Erro: "+error.message:"Usuário atualizado")}
+async function redefinirSenha(id,nome){const s=prompt(`Nova senha para ${nome} (mínimo 6 caracteres):`);if(!s)return;
+  if(s.length<6)return toast("A senha precisa ter pelo menos 6 caracteres");
+  const {error}=await sb.rpc("escala_admin_definir_senha",{p_user:id,p_senha:s});toast(error?"Erro: "+error.message:`Senha de ${nome} alterada. Passe para ele(a) a nova senha.`)}
 $("#fLoja").onsubmit=async e=>{e.preventDefault();const nome=e.target.nome.value.trim();const {data,error}=await sb.from("escala_lojas").insert({nome}).select().single();
   if(error)return toast("Erro: "+error.message);LOJAS.push(data);LOJAS.sort((a,b)=>a.nome.localeCompare(b.nome));e.target.reset();montarSelects();renderUsuarios();toast("Loja adicionada")};
 async function ativarLoja(id,v){await sb.from("escala_lojas").update({ativo:v}).eq("id",id);LOJAS.find(l=>l.id===id).ativo=v;montarSelects()}
