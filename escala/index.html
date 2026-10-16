@@ -111,6 +111,7 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
     <p class="small muted" style="margin-top:18px">Primeiro acesso? <a href="#" id="lnkCriar">Criar conta</a></p>
     <form id="fCriar" class="hidden">
       <input name="nome" placeholder="Seu nome" required>
+      <select name="loja" class="selCadLoja" required><option value="">Sua loja…</option></select>
       <input type="email" name="email" placeholder="E-mail" required>
       <input type="password" name="senha" placeholder="Senha (mín. 6 caracteres)" minlength="6" required>
       <button class="btn">Criar conta</button>
@@ -120,9 +121,15 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
 </section>
 
 <section id="telaPendente" class="login hidden">
-  <div class="card"><h1>Quase lá</h1>
-    <p>Sua conta foi criada e está <b>aguardando liberação</b>. Peça ao administrador para definir seu perfil e sua loja.</p>
-    <button class="btn sec" onclick="sair()">Sair</button></div>
+  <div class="card"><h1>Qual é a sua loja?</h1>
+    <p class="muted">Escolha a loja em que você é gerente para começar.</p>
+    <form id="fEscolherLoja">
+      <input name="nome" placeholder="Seu nome" required>
+      <select name="loja" class="selCadLoja" required><option value="">Sua loja…</option></select>
+      <button class="btn">Entrar</button>
+      <div class="erro" id="erroEscolher"></div>
+    </form>
+    <p class="small"><a href="#" onclick="sair();return false">Sair</a></p></div>
 </section>
 
 <!-- APP -->
@@ -224,7 +231,7 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
     <!-- USUÁRIOS -->
     <section id="t-usuarios" class="hidden">
       <div class="card"><h2>Usuários</h2>
-        <p class="small muted" style="margin-top:-6px"><b>Gerente</b>: vê e lança só na própria loja. <b>Gestor</b>: vê todas as lojas, recebe os alertas e remaneja. <b>Admin</b>: tudo, inclusive usuários.</p>
+        <p class="small muted" style="margin-top:-6px">Quem cria conta já entra como <b>gerente</b> da loja que escolheu. Aqui você troca a loja ou promove a gestor. <b>Gerente</b>: vê e lança só na própria loja. <b>Gestor</b>: vê todas as lojas, recebe os alertas e remaneja. <b>Admin</b>: tudo, inclusive usuários.</p>
         <div class="tbl" id="usLista"></div></div>
       <div class="card"><h2>Lojas</h2>
         <form id="fLoja" class="bar"><label>Nova loja<input name="nome" required placeholder="Nome da loja"></label><button class="btn">Adicionar</button></form>
@@ -328,16 +335,22 @@ $("#fCriar").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target
   const {data,error}=await sb.auth.signUp({email:f.get("email").trim(),password:f.get("senha")});
   if(error){$("#erroCriar").textContent=error.message.includes("registered")?"Este e-mail já tem conta. Use Entrar.":error.message;return}
   if(!data.session){$("#erroCriar").textContent="Conta criada. Confirme o e-mail e depois entre.";return}
-  await sb.rpc("escala_solicitar_acesso",{p_nome:f.get("nome")}); iniciar();};
+  const r=await sb.rpc("escala_entrar_loja",{p_nome:f.get("nome"),p_loja:+f.get("loja")});
+  if(r.error){$("#erroCriar").textContent="Erro: "+r.error.message;return} iniciar();};
+$("#fEscolherLoja").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);
+  const r=await sb.rpc("escala_entrar_loja",{p_nome:f.get("nome"),p_loja:+f.get("loja")});
+  if(r.error){$("#erroEscolher").textContent="Erro: "+r.error.message;return} iniciar();};
+async function lojasCadastro(){const {data}=await sb.rpc("escala_lojas_cadastro");
+  $$(".selCadLoja").forEach(s=>s.innerHTML='<option value="">Sua loja…</option>'+(data||[]).map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join(""));}
 async function sair(){await sb.auth.signOut();location.reload()}
 
 async function iniciar(){
   const {data:{session}}=await sb.auth.getSession();
   ["#telaLogin","#telaPendente","#app"].forEach(s=>$(s).classList.add("hidden"));
-  if(!session){$("#telaLogin").classList.remove("hidden");return}
+  if(!session){lojasCadastro();$("#telaLogin").classList.remove("hidden");return}
   let {data:u}=await sb.from("escala_usuarios").select("*").eq("user_id",session.user.id).maybeSingle();
-  if(!u){await sb.rpc("escala_solicitar_acesso",{p_nome:session.user.email});({data:u}=await sb.from("escala_usuarios").select("*").eq("user_id",session.user.id).maybeSingle());}
-  if(!u||u.perfil==="pendente"){$("#telaPendente").classList.remove("hidden");return}
+  if(!u&&session.user.email.toLowerCase()==="fabio@vilaarabe.com.br"){await sb.rpc("escala_solicitar_acesso",{p_nome:"Fábio de Moura"});({data:u}=await sb.from("escala_usuarios").select("*").eq("user_id",session.user.id).maybeSingle());}
+  if(!u||u.perfil==="pendente"){lojasCadastro();$("#telaPendente").classList.remove("hidden");if(u)$("#fEscolherLoja").nome.value=u.nome;return}
   EU=u; $("#app").classList.remove("hidden");
   $("#quem").textContent=u.nome+" · "+({gerente:"Gerente",gestor:"Gestor",admin:"Admin"}[u.perfil]);
   if(u.perfil!=="admin") $$(".so-admin").forEach(x=>x.classList.add("hidden"));
