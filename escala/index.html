@@ -183,8 +183,10 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
     <section id="t-mes" class="hidden">
       <div class="bar no-print">
         <label>Loja<select id="mesLoja" class="selLojaReal"></select></label>
-        <label>Período<select id="mesPeriodo"><option value="dia">Dia</option><option value="semana">Semana</option><option value="mes" selected>Mês</option><option value="ano">Ano</option></select></label>
-        <label>Data<input type="date" id="mesRef"></label>
+        <label>Período<select id="mesPeriodo"><option value="dia">Dia</option><option value="semana">Semana</option><option value="mes" selected>Mês</option><option value="ano">Ano</option><option value="periodo">Escolher período</option></select></label>
+        <label id="wRef">Data<input type="date" id="mesRef"></label>
+        <label id="wIni" class="hidden">Início<input type="date" id="mesIni"></label>
+        <label id="wFim" class="hidden">Fim<input type="date" id="mesFim"></label>
         <div style="display:flex;gap:4px"><button class="btn sec" onclick="navEscala(-1)" title="Anterior">◀</button><button class="btn sec" onclick="navEscala(0)">Hoje</button><button class="btn sec" onclick="navEscala(1)" title="Próximo">▶</button></div>
         <label>Função<select id="mesFuncao"></select></label>
         <button class="btn sec" id="btRestaurar" onclick="restaurarMes()">Restaurar folgas padrão</button>
@@ -419,7 +421,7 @@ function montarSelects(){
   $$(".selHora").forEach(s=>s.innerHTML=h);
   $("#chHab").innerHTML=FUNCOES.map(f=>`<label><input type="checkbox" name="hab" value="${f}"> ${f}</label>`).join("");
   $("#chFolgas").innerHTML=DIAS.map((d,i)=>`<label><input type="checkbox" name="folga" value="${i}"> ${d}</label>`).join("");
-  $("#diaData").value=hojeISO(); $("#feIni").value=hojeISO(); $("#mesRef").value=hojeISO();
+  $("#diaData").value=hojeISO(); $("#feIni").value=hojeISO(); $("#mesRef").value=hojeISO();$("#mesIni").value=hojeISO();$("#mesFim").value=addDias(hojeISO(),13);
   $("#mesFuncao").innerHTML='<option value="">Todas</option>'+FUNCOES.map(f=>`<option>${f}</option>`).join("");
 }
 
@@ -430,7 +432,7 @@ function ligarEventos(){
   ["#feLoja","#feIni","#feMeses"].forEach(s=>$(s).onchange=renderFerias);
   ["#coLoja","#coFuncao"].forEach(s=>$(s).onchange=renderColabs); $("#coBusca").oninput=renderColabs;
   $("#ocLoja").onchange=preencherColabOc;
-  ["#mesLoja","#mesPeriodo","#mesRef","#mesFuncao"].forEach(s=>$(s).onchange=renderMes);
+  ["#mesLoja","#mesPeriodo","#mesRef","#mesFuncao","#mesIni","#mesFim"].forEach(s=>$(s).onchange=renderMes);
 }
 function irPara(t){
   $$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
@@ -504,13 +506,20 @@ function cartaoOc(o,c){
 const LETRA={falta:"FA",atestado:"AT",ferias:"FE"};
 function intervaloEscala(){
   const per=$("#mesPeriodo").value, ref=$("#mesRef").value||hojeISO(), d=parse(ref);
+  const custom=per==="periodo";$("#wRef").classList.toggle("hidden",custom);$("#wIni").classList.toggle("hidden",!custom);$("#wFim").classList.toggle("hidden",!custom);
+  if(custom){let a=$("#mesIni").value||hojeISO(),b=$("#mesFim").value||a;if(b<a){[a,b]=[b,a];$("#mesIni").value=a;$("#mesFim").value=b}
+    let n=diffDias(b,a)+1;let aviso="";if(n>93){n=93;b=addDias(a,92);aviso=" (mostrando os primeiros 93 dias)"}
+    return {dias:[...Array(n)].map((_,i)=>addDias(a,i)),titulo:`De ${br(a)} a ${br(b)}${aviso}`}}
   if(per==="dia")return {dias:[ref],titulo:parse(ref).toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})};
   if(per==="semana"){const ini=new Date(d);ini.setDate(d.getDate()-((d.getDay()+6)%7));const dias=[...Array(7)].map((_,i)=>addDias(iso(ini),i));return {dias,titulo:`Semana de ${br(dias[0])} a ${br(dias[6])}`}}
   if(per==="ano"){const y=d.getFullYear();return {ano:y,dias:[],titulo:"Ano de "+y}}
   const y=d.getFullYear(),m=d.getMonth()+1,nd=new Date(y,m,0).getDate(),ym=y+"-"+String(m).padStart(2,"0");
   return {dias:[...Array(nd)].map((_,i)=>ym+"-"+String(i+1).padStart(2,"0")),titulo:new Date(y,m-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"})};
 }
-function navEscala(n){const per=$("#mesPeriodo").value;let d=parse($("#mesRef").value||hojeISO());
+function navEscala(n){const per=$("#mesPeriodo").value;
+  if(per==="periodo"){const a=$("#mesIni").value||hojeISO(),b=$("#mesFim").value||a,len=diffDias(b,a)+1;
+    if(n===0){$("#mesIni").value=hojeISO();$("#mesFim").value=addDias(hojeISO(),len-1)}else{$("#mesIni").value=addDias(a,n*len);$("#mesFim").value=addDias(b,n*len)}return renderMes()}
+  let d=parse($("#mesRef").value||hojeISO());
   if(n===0)d=parse(hojeISO());else if(per==="dia")d.setDate(d.getDate()+n);else if(per==="semana")d.setDate(d.getDate()+7*n);else if(per==="mes")d=new Date(d.getFullYear(),d.getMonth()+n,1);else d=new Date(d.getFullYear()+n,0,1);
   $("#mesRef").value=iso(d);renderMes()}
 async function renderMes(){
@@ -525,7 +534,7 @@ async function renderMes(){
   const cs=COLABS.filter(c=>c.ativo&&c.loja_id===lid&&(!fn||c.funcao===fn)).sort((a,b)=>FUNCOES.indexOf(a.funcao)-FUNCOES.indexOf(b.funcao)||a.nome.localeCompare(b.nome));
   if(!cs.length){$("#mesGrade").innerHTML='<div class="empty">Nenhum colaborador ativo nesta loja.</div>';$("#mesAvisos").innerHTML="";return}
   const we=d=>{const w=parse(d).getDay();return w===0||w===6};
-  const cab=`<tr><th class="nm">Colaborador</th>${dias.map(d=>`<th class="${we(d)?"we":""}">${nd<=7?DIAS[parse(d).getDay()]:DIAS[parse(d).getDay()].slice(0,1).toUpperCase()}<br>${nd<=7?brCurto(d):+d.slice(8)}</th>`).join("")}<th>Folgas</th><th>Trab.</th></tr>`;
+  const cab=`<tr><th class="nm">Colaborador</th>${dias.map(d=>`<th class="${we(d)?"we":""}">${nd<=7?DIAS[parse(d).getDay()]:DIAS[parse(d).getDay()].slice(0,1).toUpperCase()}<br>${nd<=7||(+d.slice(8)===1&&d!==dias[0])||d===dias[0]?brCurto(d):+d.slice(8)}</th>`).join("")}<th>Folgas</th><th>Trab.</th></tr>`;
   const avisos=[];const porDiaFuncao={};
   let html="",funcAtual=null;
   for(const c of cs){
