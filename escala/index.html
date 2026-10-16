@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Escala Vila Árabe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{--bg:#FAF7F6;--surface:#fff;--sunk:#F3EDEB;--line:#E7DDDA;--fg:#2A1716;--muted:#7A6461;--brand:#A3201E;--brand-soft:#F6E3E1;
+--ok:#1E7F5C;--ok-soft:#DDF1E8;--falta:#C2392F;--falta-soft:#F9E1DE;--atest:#B86A00;--atest-soft:#FCEBCC;--ferias:#2E5AA8;--ferias-soft:#E1E9F7;--folga:#6E6E6E;--folga-soft:#EEEEEE;
+--fd:"Bricolage Grotesque",system-ui,sans-serif;--fb:"Figtree",system-ui,sans-serif}
+*{box-sizing:border-box}html,body{margin:0}body{background:var(--bg);color:var(--fg);font:15px/1.45 var(--fb)}
+button,input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+header.top{background:var(--brand);color:#fff;padding:12px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
+header.top h1{font:800 20px var(--fd);margin:0;letter-spacing:-.01em}
+header.top .who{margin-left:auto;font-size:13px;opacity:.9;display:flex;gap:10px;align-items:center}
+header.top .who button{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:8px;padding:5px 10px;cursor:pointer}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;background:var(--surface);border-bottom:1px solid var(--line);padding:0 12px;position:sticky;top:52px;z-index:15}
+nav.tabs button{border:0;background:none;padding:13px 14px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+nav.tabs button.on{color:var(--brand);border-color:var(--brand)}
+.badge{display:inline-block;min-width:20px;padding:0 6px;border-radius:999px;background:var(--falta);color:#fff;font-size:12px;text-align:center;margin-left:4px}
+main{max-width:1200px;margin:0 auto;padding:20px 16px 80px}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:16px}
+.bar label{display:flex;flex-direction:column;font-size:12px;font-weight:600;color:var(--muted);gap:4px}
+input,select,textarea{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--surface);min-height:40px}
+textarea{min-height:70px}
+.btn{border:0;border-radius:10px;padding:10px 16px;font-weight:700;cursor:pointer;background:var(--brand);color:#fff;min-height:40px}
+.btn.sec{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
+.btn.sm{padding:6px 10px;min-height:32px;font-size:13px}
+.btn:disabled{opacity:.6}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:16px}
+.card h2{font:800 18px var(--fd);margin:0 0 12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.kpi span{display:block;font-size:12px;font-weight:600;color:var(--muted)}
+.kpi strong{font:800 28px var(--fd)}
+.kpi.ok strong{color:var(--ok)}.kpi.falta strong{color:var(--falta)}.kpi.atest strong{color:var(--atest)}.kpi.ferias strong{color:var(--ferias)}.kpi.folga strong{color:var(--folga)}
+.tbl{width:100%;overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:8px;white-space:nowrap}
+td{border-bottom:1px solid var(--line);padding:8px;vertical-align:middle}
+td.n,th.n{text-align:center}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.p-trab{background:var(--ok-soft);color:var(--ok)}.p-falta{background:var(--falta-soft);color:var(--falta)}.p-atestado{background:var(--atest-soft);color:var(--atest)}
+.p-ferias{background:var(--ferias-soft);color:var(--ferias)}.p-folga{background:var(--folga-soft);color:var(--folga)}.p-cob{background:#EDE3F7;color:#6B3FA0}
+.zero{color:#c9bdba}
+.alerta{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--line);border-left:5px solid var(--falta);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--surface)}
+.alerta.atestado{border-left-color:var(--atest)}.alerta.ferias{border-left-color:var(--ferias)}.alerta.visto{opacity:.65}
+.alerta .info{flex:1}.alerta .acoes{display:flex;gap:6px;flex-wrap:wrap}
+.muted{color:var(--muted)}.small{font-size:13px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.grid2 label{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips label{flex-direction:row;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 10px;font-weight:500;color:var(--fg);cursor:pointer;background:var(--surface)}
+.chips input{min-height:0;margin:0}
+dialog{border:0;border-radius:18px;padding:0;max-width:min(720px,94vw);width:100%;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(30,10,10,.45)}
+dialog .dh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+dialog .dh h3{margin:0;font:800 18px var(--fd)}
+dialog .db{padding:18px 20px;max-height:70vh;overflow:auto}
+dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+.x{background:none;border:0;font-size:22px;cursor:pointer;color:var(--muted)}
+.login{max-width:400px;margin:8vh auto;padding:0 16px}
+.login .card{padding:26px}
+.login h1{font:800 26px var(--fd);color:var(--brand);margin:0 0 4px}
+.login form{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.erro{color:var(--falta);font-weight:600;font-size:14px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--fg);color:#fff;padding:12px 18px;border-radius:12px;z-index:100;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.mat td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.mat .bad{color:var(--falta);font-weight:700}
+.cal{display:grid;grid-template-columns:200px 1fr;gap:0;font-size:13px}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+@media (max-width:640px){header.top{padding:10px 14px}nav.tabs{top:48px}main{padding:14px 12px 80px}.kpi strong{font-size:24px}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="telaLogin" class="login hidden">
+  <div class="card">
+    <h1>Escala Vila Árabe</h1>
+    <div class="muted">Entre com seu e-mail e senha.</div>
+    <form id="fLogin">
+      <input type="email" name="email" placeholder="E-mail" required autocomplete="username">
+      <input type="password" name="senha" placeholder="Senha" required autocomplete="current-password">
+      <button class="btn">Entrar</button>
+      <div class="erro" id="erroLogin"></div>
+    </form>
+    <p class="small muted" style="margin-top:18px">Primeiro acesso? <a href="#" id="lnkCriar">Criar conta</a></p>
+    <form id="fCriar" class="hidden">
+      <input name="nome" placeholder="Seu nome" required>
+      <input type="email" name="email" placeholder="E-mail" required>
+      <input type="password" name="senha" placeholder="Senha (mín. 6 caracteres)" minlength="6" required>
+      <button class="btn">Criar conta</button>
+      <div class="erro" id="erroCriar"></div>
+    </form>
+  </div>
+</section>
+
+<section id="telaPendente" class="login hidden">
+  <div class="card"><h1>Quase lá</h1>
+    <p>Sua conta foi criada e está <b>aguardando liberação</b>. Peça ao administrador para definir seu perfil e sua loja.</p>
+    <button class="btn sec" onclick="sair()">Sair</button></div>
+</section>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <header class="top">
+    <h1>Escala Vila Árabe</h1>
+    <div class="who"><span id="quem"></span><button onclick="sair()">Sair</button></div>
+  </header>
+  <nav class="tabs" id="tabs">
+    <button data-t="dia" class="on">Painel do dia</button>
+    <button data-t="alertas">Alertas <span class="badge hidden" id="bAlertas">0</span></button>
+    <button data-t="lancar">Lançar falta / atestado</button>
+    <button data-t="ferias">Férias</button>
+    <button data-t="colab">Colaboradores</button>
+    <button data-t="usuarios" class="so-admin">Usuários e lojas</button>
+  </nav>
+  <main>
+    <!-- PAINEL DO DIA -->
+    <section id="t-dia">
+      <div class="bar">
+        <label>Data<input type="date" id="diaData"></label>
+        <label>Loja<select id="diaLoja" class="selLoja"></select></label>
+      </div>
+      <div class="kpis" id="diaKpis"></div>
+      <div class="card"><h2>Por função</h2><div class="tbl" id="diaFuncoes"></div></div>
+      <div class="card" id="cardMatriz"><h2>Por loja</h2><p class="small muted" style="margin-top:-6px">Presentes / escalados em cada função. Em vermelho, onde há ausência.</p><div class="tbl" id="diaMatriz"></div></div>
+      <div class="card"><h2>Ausentes no dia</h2><div id="diaAusentes"></div></div>
+      <div class="card"><h2>Equipe do dia</h2>
+        <div class="bar" style="margin-bottom:8px"><label>Situação<select id="diaFiltroSit"><option value="">Todas</option><option value="trab">Trabalhando</option><option value="folga">Folga</option><option value="aus">Ausentes</option></select></label></div>
+        <div class="tbl" id="diaEquipe"></div></div>
+    </section>
+
+    <!-- ALERTAS -->
+    <section id="t-alertas" class="hidden">
+      <div class="bar">
+        <label>Loja<select id="alLoja" class="selLoja"></select></label>
+        <label>Mostrar<select id="alFiltro"><option value="novos">Não vistos</option><option value="todos">Últimos 30 dias</option></select></label>
+      </div>
+      <div id="alLista"></div>
+    </section>
+
+    <!-- LANÇAR -->
+    <section id="t-lancar" class="hidden">
+      <div class="card" style="max-width:640px">
+        <h2>Lançar falta, atestado ou férias</h2>
+        <form id="fOc" class="grid2">
+          <label>Loja<select name="loja" id="ocLoja" class="selLojaReal" required></select></label>
+          <label>Colaborador<select name="colab" id="ocColab" required></select></label>
+          <label>Tipo<select name="tipo" required><option value="falta">Falta</option><option value="atestado">Atestado</option><option value="ferias">Férias</option></select></label>
+          <span></span>
+          <label>De<input type="date" name="ini" required></label>
+          <label>Até<input type="date" name="fim" required></label>
+          <label style="grid-column:1/-1">Observação<textarea name="obs" placeholder="Ex.: atestado de 2 dias, avisou às 7h…"></textarea></label>
+          <div style="grid-column:1/-1;display:flex;gap:10px;align-items:center"><button class="btn">Lançar e avisar o gestor</button><span class="erro" id="erroOc"></span></div>
+        </form>
+      </div>
+      <div class="card"><h2>Lançamentos recentes</h2><div id="ocRecentes"></div></div>
+    </section>
+
+    <!-- FÉRIAS -->
+    <section id="t-ferias" class="hidden">
+      <div class="bar">
+        <label>Loja<select id="feLoja" class="selLoja"></select></label>
+        <label>A partir de<input type="date" id="feIni"></label>
+        <label>Meses<select id="feMeses"><option>2</option><option selected>3</option><option>6</option><option>12</option></select></label>
+      </div>
+      <div class="kpis" id="feKpis"></div>
+      <div class="card"><h2>Calendário de férias</h2><div class="tbl" id="feCal"></div></div>
+      <div class="card"><h2>Lista</h2><div class="tbl" id="feLista"></div></div>
+    </section>
+
+    <!-- COLABORADORES -->
+    <section id="t-colab" class="hidden">
+      <div class="bar">
+        <label>Loja<select id="coLoja" class="selLoja"></select></label>
+        <label>Função<select id="coFuncao"></select></label>
+        <label>Buscar<input id="coBusca" placeholder="Nome"></label>
+        <button class="btn" onclick="editarColab()">+ Novo colaborador</button>
+        <button class="btn sec" onclick="abrirImport()">Importar planilha</button>
+      </div>
+      <div class="card"><div class="muted small" id="coTotal"></div><div class="tbl" id="coLista"></div></div>
+    </section>
+
+    <!-- USUÁRIOS -->
+    <section id="t-usuarios" class="hidden">
+      <div class="card"><h2>Usuários</h2>
+        <p class="small muted" style="margin-top:-6px"><b>Gerente</b>: vê e lança só na própria loja. <b>Gestor</b>: vê todas as lojas, recebe os alertas e remaneja. <b>Admin</b>: tudo, inclusive usuários.</p>
+        <div class="tbl" id="usLista"></div></div>
+      <div class="card"><h2>Lojas</h2>
+        <form id="fLoja" class="bar"><label>Nova loja<input name="nome" required placeholder="Nome da loja"></label><button class="btn">Adicionar</button></form>
+        <div class="tbl" id="ljLista"></div></div>
+    </section>
+  </main>
+</div>
+
+<!-- DIALOGS -->
+<dialog id="dColab"><form id="fColab" method="dialog">
+  <div class="dh"><h3 id="dColabTit">Colaborador</h3><button type="button" class="x" onclick="dColab.close()">×</button></div>
+  <div class="db grid2">
+    <label style="grid-column:1/-1">Nome<input name="nome" required></label>
+    <label>Loja<select name="loja_id" class="selLojaReal" required></select></label>
+    <label>Função principal<select name="funcao" class="selFuncao" required></select></label>
+    <label style="grid-column:1/-1">Também sabe fazer (habilidades)<div class="chips" id="chHab"></div></label>
+    <label>Jornada<select name="jornada" id="cJornada" required><option value="6x1">6x1</option><option value="5x2">5x2</option><option value="12x36">12x36</option></select></label>
+    <label>Período<select id="cPeriodo"><option value="">Personalizado</option><option value="06:00-14:20">Manhã (06:00–14:20)</option><option value="07:00-15:20">Manhã (07:00–15:20)</option><option value="13:40-22:00">Tarde (13:40–22:00)</option><option value="14:00-22:00">Tarde (14:00–22:00)</option><option value="08:00-20:00">12h (08:00–20:00)</option><option value="10:00-22:00">12h (10:00–22:00)</option></select></label>
+    <label>Entrada<select name="hora_entrada" class="selHora" required></select></label>
+    <label>Saída<select name="hora_saida" class="selHora" required></select></label>
+    <label style="grid-column:1/-1" id="wrapFolgas">Dia(s) de folga<div class="chips" id="chFolgas"></div><span class="small muted" id="dicaFolga"></span></label>
+    <label id="wrap12" class="hidden">Um dia que ele trabalha (12x36)<input type="date" name="data_base_12x36"></label>
+    <label>Telefone<input name="telefone" placeholder="(31) 9…"></label>
+    <label>Admissão<input type="date" name="admissao"></label>
+    <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" name="ativo" checked style="min-height:0"> Ativo</label>
+    <div class="erro" id="erroColab" style="grid-column:1/-1"></div>
+  </div>
+  <div class="df"><button type="button" class="btn sec" onclick="dColab.close()">Cancelar</button><button class="btn" id="btSalvarColab" type="submit">Salvar</button></div>
+</form></dialog>
+
+<dialog id="dCob">
+  <div class="dh"><h3>Quem pode cobrir</h3><button class="x" onclick="dCob.close()">×</button></div>
+  <div class="db" id="cobCorpo"></div>
+  <div class="df"><button class="btn sec" onclick="dCob.close()">Fechar</button></div>
+</dialog>
+
+<dialog id="dImport">
+  <div class="dh"><h3>Importar colaboradores</h3><button class="x" onclick="dImport.close()">×</button></div>
+  <div class="db">
+    <p class="small">Cole as linhas da planilha (Excel ou Google Sheets) com as colunas nesta ordem, separadas por TAB ou ponto e vírgula:</p>
+    <pre class="small" style="background:var(--sunk);padding:10px;border-radius:8px;overflow:auto">Nome | Loja | Função | Jornada | Entrada | Saída | Folgas | Habilidades
+Maria Silva | Savassi | Caixa | 6x1 | 07:00 | 15:20 | dom | Atendente
+João Souza | Sion (Loja 3) | Cozinheiro | 12x36 | 08:00 | 20:00 | 2026-10-20 | Auxiliar de cozinha, Assador de frango</pre>
+    <p class="small muted">Folgas: dias da semana (dom, seg, ter, qua, qui, sex, sáb), separados por vírgula. No 12x36, coloque uma data em que a pessoa trabalha.</p>
+    <textarea id="impTexto" style="width:100%;min-height:180px" placeholder="Cole aqui…"></textarea>
+    <div id="impPrev" class="small" style="margin-top:10px"></div>
+  </div>
+  <div class="df"><button class="btn sec" onclick="previaImport()">Conferir</button><button class="btn" id="btImport" onclick="importar()" disabled>Importar</button></div>
+</dialog>
+
+<script>
+const SB_URL="https://dxgmxqrmtvqwmrkjyjwt.supabase.co";
+const SB_KEY="sb_publishable_2Pz2mftDBu09FVDIt6df7Q_-iSc3AI8";
+const sb=supabase.createClient(SB_URL,SB_KEY);
+const FUNCOES=["Gerente","Subgerente","Caixa","Atendente","Garçom","Cozinheiro","Auxiliar de cozinha","Assador de frango"];
+const DIAS=["dom","seg","ter","qua","qui","sex","sáb"];
+const TIPO={falta:"Falta",atestado:"Atestado",ferias:"Férias"};
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let EU=null, LOJAS=[], COLABS=[], OCS=[];
+
+// ---------- datas ----------
+const hojeISO=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const parse=s=>{const[y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const iso=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+const addDias=(s,n)=>{const d=parse(s);d.setDate(d.getDate()+n);return iso(d)};
+const br=s=>s?s.slice(8,10)+"/"+s.slice(5,7)+"/"+s.slice(0,4):"";
+const brCurto=s=>s?s.slice(8,10)+"/"+s.slice(5,7):"";
+const diffDias=(a,b)=>Math.round((parse(a)-parse(b))/864e5);
+const hm=t=>t?t.slice(0,5):"";
+function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.append(t);setTimeout(()=>t.remove(),3200)}
+
+// ---------- regra da escala ----------
+function escalado(c,dia){
+  if(!c.ativo) return false;
+  if(c.jornada==="12x36"){ if(!c.data_base_12x36) return true; return ((diffDias(dia,c.data_base_12x36))%2+2)%2===0; }
+  return !(c.folgas||[]).includes(parse(dia).getDay());
+}
+function ocDe(cid,dia){return OCS.find(o=>o.colaborador_id===cid&&o.data_inicio<=dia&&o.data_fim>=dia)}
+function situacao(c,dia){
+  const o=ocDe(c.id,dia);
+  if(o) return {s:o.tipo,o};
+  const cob=OCS.find(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=dia&&o.data_fim>=dia);
+  if(cob && cob.loja_id!==c.loja_id) return {s:"cobrindo",o:cob};
+  return {s:escalado(c,dia)?"trab":"folga"};
+}
+const lojaNome=id=>(LOJAS.find(l=>l.id===id)||{}).nome||"—";
+const pill=s=>({trab:'<span class="pill p-trab">Trabalhando</span>',folga:'<span class="pill p-folga">Folga</span>',falta:'<span class="pill p-falta">Falta</span>',atestado:'<span class="pill p-atestado">Atestado</span>',ferias:'<span class="pill p-ferias">Férias</span>',cobrindo:'<span class="pill p-cob">Cobrindo outra loja</span>'}[s]||s);
+const ehGestor=()=>EU&&(EU.perfil==="gestor"||EU.perfil==="admin");
+
+// ---------- auth ----------
+$("#lnkCriar").onclick=e=>{e.preventDefault();$("#fCriar").classList.toggle("hidden")};
+$("#fLogin").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);$("#erroLogin").textContent="";
+  const {error}=await sb.auth.signInWithPassword({email:f.get("email").trim(),password:f.get("senha")});
+  if(error){$("#erroLogin").textContent="E-mail ou senha incorretos.";return} iniciar();};
+$("#fCriar").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);$("#erroCriar").textContent="";
+  const {data,error}=await sb.auth.signUp({email:f.get("email").trim(),password:f.get("senha")});
+  if(error){$("#erroCriar").textContent=error.message.includes("registered")?"Este e-mail já tem conta. Use Entrar.":error.message;return}
+  if(!data.session){$("#erroCriar").textContent="Conta criada. Confirme o e-mail e depois entre.";return}
+  await sb.rpc("escala_solicitar_acesso",{p_nome:f.get("nome")}); iniciar();};
+async function sair(){await sb.auth.signOut();location.reload()}
+
+async function iniciar(){
+  const {data:{session}}=await sb.auth.getSession();
+  ["#telaLogin","#telaPendente","#app"].forEach(s=>$(s).classList.add("hidden"));
+  if(!session){$("#telaLogin").classList.remove("hidden");return}
+  let {data:u}=await sb.from("escala_usuarios").select("*").eq("user_id",session.user.id).maybeSingle();
+  if(!u){await sb.rpc("escala_solicitar_acesso",{p_nome:session.user.email});({data:u}=await sb.from("escala_usuarios").select("*").eq("user_id",session.user.id).maybeSingle());}
+  if(!u||u.perfil==="pendente"){$("#telaPendente").classList.remove("hidden");return}
+  EU=u; $("#app").classList.remove("hidden");
+  $("#quem").textContent=u.nome+" · "+({gerente:"Gerente",gestor:"Gestor",admin:"Admin"}[u.perfil]);
+  if(u.perfil!=="admin") $$(".so-admin").forEach(x=>x.classList.add("hidden"));
+  await carregarBase(); montarSelects(); ligarEventos(); irPara("dia"); setInterval(atualizarAlertas,60000);
+}
+
+async function carregarBase(){
+  const [l,c]=await Promise.all([sb.from("escala_lojas").select("*").order("nome"),sb.from("escala_colaboradores").select("*").order("nome")]);
+  LOJAS=l.data||[]; COLABS=c.data||[];
+  const ini=addDias(hojeISO(),-60);
+  const o=await sb.from("escala_ocorrencias").select("*").gte("data_fim",ini).order("criado_em",{ascending:false}).limit(5000);
+  OCS=o.data||[]; atualizarBadge();
+}
+
+function montarSelects(){
+  const lojasAtivas=LOJAS.filter(l=>l.ativo);
+  const opts=lojasAtivas.map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join("");
+  $$(".selLoja").forEach(s=>{ s.innerHTML=(ehGestor()?'<option value="">Todas as lojas</option>':"")+opts; if(!ehGestor()) {s.value=EU.loja_id;s.disabled=true;} });
+  $$(".selLojaReal").forEach(s=>{ s.innerHTML=opts; if(!ehGestor()){s.value=EU.loja_id;s.disabled=true;} });
+  $$(".selFuncao").forEach(s=>s.innerHTML=FUNCOES.map(f=>`<option>${f}</option>`).join(""));
+  $("#coFuncao").innerHTML='<option value="">Todas</option>'+FUNCOES.map(f=>`<option>${f}</option>`).join("");
+  let h="";for(let m=6*60;m<=22*60;m+=10){const t=String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");h+=`<option value="${t}">${t}</option>`}
+  $$(".selHora").forEach(s=>s.innerHTML=h);
+  $("#chHab").innerHTML=FUNCOES.map(f=>`<label><input type="checkbox" name="hab" value="${f}"> ${f}</label>`).join("");
+  $("#chFolgas").innerHTML=DIAS.map((d,i)=>`<label><input type="checkbox" name="folga" value="${i}"> ${d}</label>`).join("");
+  $("#diaData").value=hojeISO(); $("#feIni").value=hojeISO();
+}
+
+function ligarEventos(){
+  $$("#tabs button").forEach(b=>b.onclick=()=>irPara(b.dataset.t));
+  ["#diaData","#diaLoja","#diaFiltroSit"].forEach(s=>$(s).onchange=renderDia);
+  ["#alLoja","#alFiltro"].forEach(s=>$(s).onchange=renderAlertas);
+  ["#feLoja","#feIni","#feMeses"].forEach(s=>$(s).onchange=renderFerias);
+  ["#coLoja","#coFuncao"].forEach(s=>$(s).onchange=renderColabs); $("#coBusca").oninput=renderColabs;
+  $("#ocLoja").onchange=preencherColabOc;
+}
+function irPara(t){
+  $$("#tabs button").forEach(b=>b.classList.toggle("on",b.dataset.t===t));
+  $$("main>section").forEach(s=>s.classList.toggle("hidden",s.id!=="t-"+t));
+  ({dia:renderDia,alertas:renderAlertas,lancar:renderLancar,ferias:renderFerias,colab:renderColabs,usuarios:renderUsuarios}[t])();
+  scrollTo(0,0);
+}
+
+// ---------- PAINEL DO DIA ----------
+function colabsDaLoja(lid){return COLABS.filter(c=>c.ativo&&(!lid||c.loja_id===+lid))}
+function renderDia(){
+  const dia=$("#diaData").value||hojeISO(), lid=$("#diaLoja").value;
+  const base=colabsDaLoja(lid).map(c=>({c,...situacao(c,dia)}));
+  // quem veio de outra loja cobrir nesta
+  const vindos=COLABS.filter(c=>c.ativo&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=dia&&o.data_fim>=dia&&(!lid||o.loja_id===+lid)&&o.loja_id!==c.loja_id));
+  const cnt=k=>base.filter(x=>x.s===k).length;
+  const escal=base.filter(x=>x.s!=="folga"&&x.s!=="ferias"&&x.s!=="cobrindo").length;
+  $("#diaKpis").innerHTML=[
+    ["Escalados",escal,""],["Trabalhando",cnt("trab")+vindos.length,"ok"],["Faltas",cnt("falta"),"falta"],["Atestados",cnt("atestado"),"atest"],["Férias",cnt("ferias"),"ferias"],["De folga",cnt("folga"),"folga"]
+  ].map(([t,v,k])=>`<div class="kpi ${k}"><span>${t}</span><strong>${v}</strong></div>`).join("");
+  // por função
+  const z=v=>v?v:`<span class="zero">0</span>`;
+  const linhas=FUNCOES.map(f=>{const b=base.filter(x=>x.c.funcao===f);const k=s=>b.filter(x=>x.s===s).length;const vin=vindos.filter(c=>c.funcao===f).length;
+    const esc_=b.filter(x=>!["folga","ferias","cobrindo"].includes(x.s)).length;
+    return {f,esc_,trab:k("trab")+vin,falta:k("falta"),atest:k("atestado"),fer:k("ferias"),folga:k("folga"),vin}}).filter(r=>r.esc_+r.fer+r.folga+r.vin>0);
+  $("#diaFuncoes").innerHTML=linhas.length?`<table><tr><th>Função</th><th class="n">Escalados</th><th class="n">Trabalhando</th><th class="n">Faltas</th><th class="n">Atestados</th><th class="n">Férias</th><th class="n">Folga</th></tr>
+    ${linhas.map(r=>`<tr><td><b>${r.f}</b></td><td class="n">${z(r.esc_)}</td><td class="n">${z(r.trab)}${r.vin?` <span class="pill p-cob">+${r.vin} cobertura</span>`:""}</td><td class="n">${r.falta?`<b style="color:var(--falta)">${r.falta}</b>`:z(0)}</td><td class="n">${r.atest?`<b style="color:var(--atest)">${r.atest}</b>`:z(0)}</td><td class="n">${z(r.fer)}</td><td class="n">${z(r.folga)}</td></tr>`).join("")}</table>`:'<div class="empty">Nenhum colaborador cadastrado nesta loja.</div>';
+  // matriz por loja (só com "todas")
+  $("#cardMatriz").classList.toggle("hidden",!!lid||!ehGestor());
+  if(!lid&&ehGestor()){
+    const lojas=LOJAS.filter(l=>l.ativo&&COLABS.some(c=>c.loja_id===l.id));
+    $("#diaMatriz").innerHTML=lojas.length?`<table class="mat"><tr><th>Loja</th>${FUNCOES.map(f=>`<th class="n">${f}</th>`).join("")}<th class="n">Ausentes</th></tr>
+    ${lojas.map(l=>{const b=base.filter(x=>x.c.loja_id===l.id);let aus=0;
+      const cel=FUNCOES.map(f=>{const bf=b.filter(x=>x.c.funcao===f);const e=bf.filter(x=>!["folga","ferias","cobrindo"].includes(x.s)).length;
+        const vin=vindos.filter(c=>c.funcao===f&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.loja_id===l.id&&o.data_inicio<=dia&&o.data_fim>=dia)).length;
+        const p=bf.filter(x=>x.s==="trab").length+vin;const a=bf.filter(x=>x.s==="falta"||x.s==="atestado").length;aus+=a;
+        return e||p?`<td class="n ${p<e?"bad":""}">${p}/${e}</td>`:`<td class="n zero">–</td>`}).join("");
+      return `<tr><td><b>${esc(l.nome)}</b></td>${cel}<td class="n">${aus?`<b style="color:var(--falta)">${aus}</b>`:'<span class="zero">0</span>'}</td></tr>`}).join("")}</table>`:'<div class="empty">Cadastre colaboradores para ver o quadro por loja.</div>';
+  }
+  // ausentes
+  const aus=base.filter(x=>x.s==="falta"||x.s==="atestado");
+  $("#diaAusentes").innerHTML=aus.length?aus.map(x=>cartaoOc(x.o,x.c)).join(""):'<div class="empty">Nenhuma falta ou atestado neste dia. 👍</div>';
+  // equipe
+  const fs=$("#diaFiltroSit").value;
+  let eq=base.filter(x=>!fs||(fs==="trab"&&x.s==="trab")||(fs==="folga"&&x.s==="folga")||(fs==="aus"&&["falta","atestado","ferias"].includes(x.s)));
+  eq=eq.concat(fs&&fs!=="trab"?[]:vindos.map(c=>({c,s:"veio"})));
+  eq.sort((a,b)=>a.c.loja_id-b.c.loja_id||FUNCOES.indexOf(a.c.funcao)-FUNCOES.indexOf(b.c.funcao)||a.c.nome.localeCompare(b.c.nome));
+  $("#diaEquipe").innerHTML=eq.length?`<table><tr><th>Nome</th>${lid?"":"<th>Loja</th>"}<th>Função</th><th>Horário</th><th>Jornada</th><th>Situação</th></tr>
+   ${eq.map(x=>`<tr><td>${esc(x.c.nome)}</td>${lid?"":`<td>${esc(lojaNome(x.c.loja_id))}</td>`}<td>${x.c.funcao}</td><td>${hm(x.c.hora_entrada)}–${hm(x.c.hora_saida)}</td><td>${x.c.jornada}</td><td>${x.s==="veio"?`<span class="pill p-cob">Cobrindo (vem de ${esc(lojaNome(x.c.loja_id))})</span>`:pill(x.s)}</td></tr>`).join("")}</table>`:'<div class="empty">Ninguém nesta situação.</div>';
+}
+
+// ---------- cartão de ocorrência ----------
+function cartaoOc(o,c){
+  c=c||COLABS.find(x=>x.id===o.colaborador_id)||{nome:"(colaborador)",funcao:"",hora_entrada:"",hora_saida:""};
+  const cob=o.cobertura_colaborador_id?(COLABS.find(x=>x.id===o.cobertura_colaborador_id)||{nome:o.cobertura_obs||"definida"}):null;
+  const per=o.data_inicio===o.data_fim?br(o.data_inicio):br(o.data_inicio)+" a "+br(o.data_fim);
+  return `<div class="alerta ${o.tipo} ${o.visto_em?"visto":""}"><div class="info">
+    <div>${pill(o.tipo)} <b>${esc(c.nome)}</b> · ${esc(c.funcao)} · ${esc(lojaNome(o.loja_id))}</div>
+    <div class="small muted">${per} · horário ${hm(c.hora_entrada)}–${hm(c.hora_saida)} · lançado por ${esc(o.criado_por_nome||"—")} em ${new Date(o.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</div>
+    ${o.observacao?`<div class="small">“${esc(o.observacao)}”</div>`:""}
+    ${cob?`<div class="small" style="margin-top:4px"><span class="pill p-cob">Cobertura</span> ${esc(cob.nome)}${cob.loja_id?" ("+esc(lojaNome(cob.loja_id))+")":""}</div>`:""}
+    ${o.visto_em?`<div class="small muted">✓ Visto pelo gestor</div>`:""}
+  </div><div class="acoes">
+    ${ehGestor()&&o.tipo!=="ferias"?`<button class="btn sm" onclick="abrirCobertura(${o.id})">${cob?"Trocar cobertura":"Quem pode cobrir?"}</button>`:""}
+    ${ehGestor()&&!o.visto_em?`<button class="btn sm sec" onclick="marcarVisto(${o.id})">Marcar como visto</button>`:""}
+    ${(ehGestor()||o.criado_por===EU.user_id)?`<button class="btn sm sec" onclick="excluirOc(${o.id})">Excluir</button>`:""}
+  </div></div>`;
+}
+
+// ---------- ALERTAS ----------
+function atualizarBadge(){const n=OCS.filter(o=>!o.visto_em&&o.tipo!=="ferias").length;const b=$("#bAlertas");b.textContent=n;b.classList.toggle("hidden",!n||!ehGestor())}
+async function atualizarAlertas(){const ini=addDias(hojeISO(),-60);const o=await sb.from("escala_ocorrencias").select("*").gte("data_fim",ini).order("criado_em",{ascending:false}).limit(5000);
+  if(o.data){const antes=OCS.filter(x=>!x.visto_em).length;OCS=o.data;const dep=OCS.filter(x=>!x.visto_em).length;atualizarBadge();if(ehGestor()&&dep>antes)toast("Novo lançamento de falta/atestado");
+   const t=$$("#tabs button").find(b=>b.classList.contains("on")).dataset.t;if(t==="alertas")renderAlertas();if(t==="dia")renderDia();}}
+function renderAlertas(){
+  const lid=$("#alLoja").value, f=$("#alFiltro").value, lim=addDias(hojeISO(),-30);
+  let l=OCS.filter(o=>(!lid||o.loja_id===+lid)&&(f==="novos"?(!o.visto_em&&o.tipo!=="ferias"):o.criado_em.slice(0,10)>=lim));
+  $("#alLista").innerHTML=l.length?l.map(o=>cartaoOc(o)).join(""):`<div class="card empty">${f==="novos"?"Nenhum alerta novo. Tudo em dia!":"Nenhum lançamento nos últimos 30 dias."}</div>`;
+}
+async function marcarVisto(id){const {error}=await sb.from("escala_ocorrencias").update({visto_por:EU.user_id,visto_em:new Date().toISOString()}).eq("id",id);
+  if(error)return toast("Erro: "+error.message);const o=OCS.find(x=>x.id===id);o.visto_em=new Date().toISOString();atualizarBadge();rerender()}
+async function excluirOc(id){if(!confirm("Excluir este lançamento?"))return;const {error}=await sb.from("escala_ocorrencias").delete().eq("id",id);
+  if(error)return toast("Erro: "+error.message);OCS=OCS.filter(x=>x.id!==id);atualizarBadge();rerender()}
+function rerender(){const t=$$("#tabs button").find(b=>b.classList.contains("on")).dataset.t;irPara(t)}
+
+// ---------- COBERTURA ----------
+async function abrirCobertura(id){
+  const o=OCS.find(x=>x.id===id), c=COLABS.find(x=>x.id===o.colaborador_id)||{};
+  const dia=o.data_inicio>hojeISO()?o.data_inicio:(o.data_fim<hojeISO()?o.data_inicio:hojeISO());
+  $("#cobCorpo").innerHTML="Buscando…";dCob.showModal();
+  const {data,error}=await sb.rpc("escala_cobertura_candidatos",{p_funcao:c.funcao,p_data:dia});
+  if(error){$("#cobCorpo").textContent="Erro: "+error.message;return}
+  const ini=c.hora_entrada,fim=c.hora_saida;
+  const cand=(data||[]).filter(x=>x.id!==c.id).map(x=>{
+    const esc_=escalado({...x,ativo:true},dia); const jaCobre=OCS.some(z=>z.cobertura_colaborador_id===x.id&&z.data_inicio<=dia&&z.data_fim>=dia);
+    const sobrep=x.hora_entrada<fim&&x.hora_saida>ini; const mesmaLoja=x.loja_id===o.loja_id;
+    // sobra na loja de origem: quantos da mesma função estão trabalhando lá
+    const naOrigem=COLABS.filter(z=>z.loja_id===x.loja_id&&z.funcao===c.funcao&&situacao(z,dia).s==="trab").length;
+    let rank=0,motivo="";
+    if(jaCobre){rank=9;motivo="Já está cobrindo outra ausência"}
+    else if(!esc_){rank=1;motivo="Está de folga neste dia (pode fazer extra)"}
+    else if(mesmaLoja&&!sobrep){rank=2;motivo="Mesma loja, outro turno (pode dobrar/estender)"}
+    else if(!mesmaLoja&&naOrigem>=2){rank=3;motivo=`Trabalhando em ${x.loja} — a loja tem ${naOrigem} nessa função hoje`}
+    else if(!mesmaLoja){rank=5;motivo=`Trabalhando em ${x.loja} — único(a) nessa função lá`}
+    else {rank=8;motivo="Já está trabalhando no mesmo horário nesta loja"}
+    return {...x,rank,motivo,principal:x.funcao===c.funcao};
+  }).sort((a,b)=>a.rank-b.rank||(b.principal-a.principal)||a.nome.localeCompare(b.nome));
+  $("#cobCorpo").innerHTML=`<p><b>${esc(c.nome)}</b> · ${esc(c.funcao)} · ${esc(lojaNome(o.loja_id))} · ${hm(ini)}–${hm(fim)}<br><span class="small muted">Dia considerado: ${br(dia)}. Lista quem tem a função ou a habilidade de ${esc(c.funcao)} e não está de férias, falta ou atestado.</span></p>
+   <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="cobLivre" placeholder="Ou escreva quem vai cobrir (ex.: extra/freelancer)" style="flex:1;min-width:220px"><button class="btn sm sec" onclick="definirCob(${id},null)">Salvar texto</button>${o.cobertura_colaborador_id||o.cobertura_obs?`<button class="btn sm sec" onclick="definirCob(${id},0)">Remover cobertura</button>`:""}</div>
+   ${cand.length?`<div class="tbl"><table><tr><th>Nome</th><th>Loja</th><th>Função</th><th>Horário</th><th>Situação no dia</th><th></th></tr>
+   ${cand.map(x=>`<tr style="${x.rank>=8?"opacity:.55":""}"><td><b>${esc(x.nome)}</b></td><td>${esc(x.loja)}</td><td>${esc(x.funcao)}${x.principal?"":' <span class="small muted">(habilidade)</span>'}</td><td>${hm(x.hora_entrada)}–${hm(x.hora_saida)}</td><td class="small">${esc(x.motivo)}</td><td><button class="btn sm" onclick="definirCob(${id},${x.id})">Escolher</button></td></tr>`).join("")}</table></div>`:'<div class="empty">Ninguém disponível com essa função ou habilidade. Cadastre habilidades nos colaboradores para ampliar as opções.</div>'}`;
+}
+async function definirCob(id,cid){
+  const upd=cid===0?{cobertura_colaborador_id:null,cobertura_obs:null}:cid===null?{cobertura_colaborador_id:null,cobertura_obs:$("#cobLivre").value.trim()||null}:{cobertura_colaborador_id:cid,cobertura_obs:null};
+  upd.visto_por=EU.user_id;upd.visto_em=new Date().toISOString();
+  const {error}=await sb.from("escala_ocorrencias").update(upd).eq("id",id);if(error)return toast("Erro: "+error.message);
+  Object.assign(OCS.find(x=>x.id===id),upd);
+  dCob.close();atualizarBadge();toast("Cobertura registrada");rerender();
+}
+
+// ---------- LANÇAR ----------
+function preencherColabOc(){const lid=+$("#ocLoja").value;$("#ocColab").innerHTML=COLABS.filter(c=>c.ativo&&c.loja_id===lid).map(c=>`<option value="${c.id}">${esc(c.nome)} — ${c.funcao}</option>`).join("")||'<option value="">Nenhum colaborador nesta loja</option>'}
+function renderLancar(){
+  if(ehGestor()&&!$("#ocLoja").value)$("#ocLoja").value=LOJAS[0]?.id; preencherColabOc();
+  const f=$("#fOc");if(!f.ini.value){f.ini.value=hojeISO();f.fim.value=hojeISO()}
+  const meus=OCS.filter(o=>ehGestor()||o.loja_id===EU.loja_id).slice(0,15);
+  $("#ocRecentes").innerHTML=meus.length?meus.map(o=>cartaoOc(o)).join(""):'<div class="empty">Nenhum lançamento ainda.</div>';
+}
+$("#fOc").onsubmit=async e=>{e.preventDefault();const f=e.target;$("#erroOc").textContent="";
+  if(!f.colab.value)return $("#erroOc").textContent="Escolha o colaborador.";
+  if(f.fim.value<f.ini.value)return $("#erroOc").textContent="A data final é antes da inicial.";
+  const c=COLABS.find(x=>x.id===+f.colab.value);
+  const conflito=OCS.find(o=>o.colaborador_id===c.id&&o.data_inicio<=f.fim.value&&o.data_fim>=f.ini.value);
+  if(conflito&&!confirm(`${c.nome} já tem ${TIPO[conflito.tipo]} lançado(a) de ${br(conflito.data_inicio)} a ${br(conflito.data_fim)}. Lançar mesmo assim?`))return;
+  const row={colaborador_id:c.id,loja_id:c.loja_id,tipo:f.tipo.value,data_inicio:f.ini.value,data_fim:f.fim.value,observacao:f.obs.value.trim()||null,criado_por_nome:EU.nome};
+  const btn=f.querySelector("button");btn.disabled=true;
+  const {data,error}=await sb.from("escala_ocorrencias").insert(row).select().single();btn.disabled=false;
+  if(error)return $("#erroOc").textContent="Erro: "+error.message;
+  OCS.unshift(data);f.obs.value="";toast(f.tipo.value==="ferias"?"Férias lançadas":"Lançado! O gestor já vê o alerta no painel.");atualizarBadge();renderLancar();
+};
+
+// ---------- FÉRIAS ----------
+function renderFerias(){
+  const lid=$("#feLoja").value, ini=$("#feIni").value||hojeISO(), meses=+$("#feMeses").value;
+  const d0=parse(ini);const fimD=new Date(d0.getFullYear(),d0.getMonth()+meses,0);const fim=iso(fimD);
+  const fe=OCS.filter(o=>o.tipo==="ferias"&&o.data_fim>=ini&&o.data_inicio<=fim&&(!lid||o.loja_id===+lid)).sort((a,b)=>a.data_inicio.localeCompare(b.data_inicio));
+  const hoje=hojeISO();const agora=fe.filter(o=>o.data_inicio<=hoje&&o.data_fim>=hoje).length;
+  const prox30=fe.filter(o=>o.data_inicio>hoje&&o.data_inicio<=addDias(hoje,30)).length;
+  $("#feKpis").innerHTML=`<div class="kpi ferias"><span>De férias hoje</span><strong>${agora}</strong></div><div class="kpi"><span>Começam nos próximos 30 dias</span><strong>${prox30}</strong></div><div class="kpi"><span>No período</span><strong>${fe.length}</strong></div>`;
+  // calendário em semanas
+  const semanas=[];let s=parse(ini);s.setDate(s.getDate()-s.getDay()+1);while(iso(s)<=fim){semanas.push(iso(s));s.setDate(s.getDate()+7)}
+  $("#feCal").innerHTML=fe.length?`<table><tr><th>Colaborador</th>${semanas.map(w=>`<th class="n" style="font-size:11px">${brCurto(w)}</th>`).join("")}</tr>
+   ${fe.map(o=>{const c=COLABS.find(x=>x.id===o.colaborador_id)||{nome:"?"};return `<tr><td style="white-space:nowrap"><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao||"")} · ${esc(lojaNome(o.loja_id))}</span></td>${semanas.map(w=>{const we=addDias(w,6);const on=o.data_inicio<=we&&o.data_fim>=w;return `<td style="padding:4px 1px"><div style="height:18px;border-radius:4px;background:${on?"var(--ferias)":"transparent"}"></div></td>`}).join("")}</tr>`}).join("")}</table>`:'<div class="empty">Nenhuma férias lançada no período.</div>';
+  $("#feLista").innerHTML=fe.length?`<table><tr><th>Colaborador</th><th>Loja</th><th>Função</th><th>Início</th><th>Fim</th><th class="n">Dias</th><th>Situação</th></tr>${fe.map(o=>{const c=COLABS.find(x=>x.id===o.colaborador_id)||{};const st=o.data_fim<hoje?"Encerrada":o.data_inicio<=hoje?"Em férias":"Programada";
+    return `<tr><td>${esc(c.nome)}</td><td>${esc(lojaNome(o.loja_id))}</td><td>${esc(c.funcao)}</td><td>${br(o.data_inicio)}</td><td>${br(o.data_fim)}</td><td class="n">${diffDias(o.data_fim,o.data_inicio)+1}</td><td>${st==="Em férias"?pill("ferias"):st}</td></tr>`}).join("")}</table>`:"";
+}
+
+// ---------- COLABORADORES ----------
+function descJornada(c){if(c.jornada==="12x36")return "12x36";return c.jornada+" · folga "+(c.folgas||[]).map(i=>DIAS[i]).join(", ")}
+function renderColabs(){
+  const lid=$("#coLoja").value, fn=$("#coFuncao").value, q=$("#coBusca").value.trim().toLowerCase();
+  const l=COLABS.filter(c=>(!lid||c.loja_id===+lid)&&(!fn||c.funcao===fn||(c.habilidades||[]).includes(fn))&&(!q||c.nome.toLowerCase().includes(q)));
+  $("#coTotal").textContent=`${l.filter(c=>c.ativo).length} ativos${l.some(c=>!c.ativo)?` · ${l.filter(c=>!c.ativo).length} inativos`:""}`;
+  $("#coLista").innerHTML=l.length?`<table><tr><th>Nome</th><th>Loja</th><th>Função</th><th>Também faz</th><th>Horário</th><th>Jornada</th><th>Hoje</th><th></th></tr>
+   ${l.map(c=>`<tr style="${c.ativo?"":"opacity:.5"}"><td><b>${esc(c.nome)}</b></td><td>${esc(lojaNome(c.loja_id))}</td><td>${c.funcao}</td><td class="small">${(c.habilidades||[]).join(", ")||'<span class="zero">—</span>'}</td><td>${hm(c.hora_entrada)}–${hm(c.hora_saida)}</td><td class="small">${descJornada(c)}</td><td>${c.ativo?pill(situacao(c,hojeISO()).s):"Inativo"}</td><td><button class="btn sm sec" onclick="editarColab(${c.id})">Editar</button></td></tr>`).join("")}</table>`:'<div class="empty">Nenhum colaborador encontrado. Clique em “+ Novo colaborador” ou importe a planilha.</div>';
+}
+let editId=null;
+function ajustarJornada(){const j=$("#cJornada").value;$("#wrapFolgas").classList.toggle("hidden",j==="12x36");$("#wrap12").classList.toggle("hidden",j!=="12x36");
+  $("#dicaFolga").textContent=j==="6x1"?"Marque 1 dia.":j==="5x2"?"Marque 2 dias.":""}
+$("#cJornada").onchange=ajustarJornada;
+$("#cPeriodo").onchange=e=>{const v=e.target.value;if(!v)return;const[a,b]=v.split("-");$("#fColab").hora_entrada.value=a;$("#fColab").hora_saida.value=b};
+function editarColab(id){
+  editId=id||null;const f=$("#fColab");f.reset();$("#erroColab").textContent="";$("#cPeriodo").value="";
+  const c=id?COLABS.find(x=>x.id===id):{loja_id:ehGestor()?(+$("#coLoja").value||LOJAS[0]?.id):EU.loja_id,funcao:"Atendente",jornada:"6x1",hora_entrada:"07:00",hora_saida:"15:20",folgas:[0],habilidades:[],ativo:true};
+  $("#dColabTit").textContent=id?"Editar colaborador":"Novo colaborador";
+  f.nome.value=c.nome||"";f.loja_id.value=c.loja_id;f.funcao.value=c.funcao;f.jornada.value=c.jornada;
+  f.hora_entrada.value=hm(c.hora_entrada);f.hora_saida.value=hm(c.hora_saida);f.data_base_12x36.value=c.data_base_12x36||"";
+  f.telefone.value=c.telefone||"";f.admissao.value=c.admissao||"";f.ativo.checked=c.ativo!==false;
+  $$("#chHab input").forEach(i=>i.checked=(c.habilidades||[]).includes(i.value));
+  $$("#chFolgas input").forEach(i=>i.checked=(c.folgas||[]).includes(+i.value));
+  ajustarJornada();dColab.showModal();
+}
+$("#fColab").onsubmit=async e=>{e.preventDefault();const f=e.target;$("#erroColab").textContent="";
+  const folgas=$$("#chFolgas input:checked").map(i=>+i.value), j=f.jornada.value;
+  if(j==="6x1"&&folgas.length!==1)return $("#erroColab").textContent="No 6x1 marque exatamente 1 dia de folga.";
+  if(j==="5x2"&&folgas.length!==2)return $("#erroColab").textContent="No 5x2 marque exatamente 2 dias de folga.";
+  if(j==="12x36"&&!f.data_base_12x36.value)return $("#erroColab").textContent="No 12x36 informe um dia em que a pessoa trabalha.";
+  if(f.hora_saida.value<=f.hora_entrada.value)return $("#erroColab").textContent="A saída precisa ser depois da entrada.";
+  const row={nome:f.nome.value.trim(),loja_id:+f.loja_id.value,funcao:f.funcao.value,habilidades:$$("#chHab input:checked").map(i=>i.value).filter(h=>h!==f.funcao.value),
+    jornada:j,hora_entrada:f.hora_entrada.value,hora_saida:f.hora_saida.value,folgas:j==="12x36"?[]:folgas,data_base_12x36:j==="12x36"?f.data_base_12x36.value:null,
+    telefone:f.telefone.value.trim()||null,admissao:f.admissao.value||null,ativo:f.ativo.checked};
+  $("#btSalvarColab").disabled=true;
+  const q=editId?sb.from("escala_colaboradores").update(row).eq("id",editId).select().single():sb.from("escala_colaboradores").insert(row).select().single();
+  const {data,error}=await q;$("#btSalvarColab").disabled=false;
+  if(error)return $("#erroColab").textContent="Erro: "+error.message;
+  if(editId)Object.assign(COLABS.find(x=>x.id===editId),data);else COLABS.push(data);
+  COLABS.sort((a,b)=>a.nome.localeCompare(b.nome));dColab.close();toast("Colaborador salvo");renderColabs();
+};
+
+// ---------- IMPORTAR ----------
+let IMP=[];
+function abrirImport(){$("#impTexto").value="";$("#impPrev").innerHTML="";$("#btImport").disabled=true;dImport.showModal()}
+const norm=s=>String(s||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase().trim();
+function acharLoja(n){const k=norm(n);return LOJAS.find(l=>norm(l.nome)===k)||LOJAS.find(l=>norm(l.nome).includes(k)||k.includes(norm(l.nome).split(" (")[0]))}
+function acharFuncao(n){const k=norm(n).replace("garcon","garcom");return FUNCOES.find(f=>norm(f)===k)||FUNCOES.find(f=>norm(f).startsWith(k))}
+const hora=s=>{const m=String(s||"").match(/(\d{1,2})[:h.]?(\d{2})?/);return m?String(m[1]).padStart(2,"0")+":"+(m[2]||"00"):null};
+function previaImport(){
+  const linhas=$("#impTexto").value.split(/\r?\n/).filter(l=>l.trim());IMP=[];const erros=[];
+  linhas.forEach((l,i)=>{const p=l.split(/\t|;|\|/).map(x=>x.trim());if(i===0&&norm(p[0])==="nome")return;
+    const [nome,loja,funcao,jor,ent,sai,folg,hab]=p;const L=acharLoja(loja),F=acharFuncao(funcao),J=["6x1","5x2","12x36"].find(x=>norm(jor).replace(/\s/g,"")===x);
+    const e=[];if(!nome)e.push("sem nome");if(!L)e.push(`loja "${loja}" não encontrada`);if(!F)e.push(`função "${funcao}" inválida`);if(!J)e.push(`jornada "${jor}" inválida`);
+    const he=hora(ent),hs=hora(sai);if(!he||!hs||he<"06:00"||hs>"22:00"||hs<=he)e.push("horário inválido (06:00 a 22:00)");
+    let folgas=[],base=null;
+    if(J==="12x36"){const m=String(folg||"").match(/(\d{4})-(\d{2})-(\d{2})|(\d{2})\/(\d{2})\/(\d{4})/);if(m)base=m[1]?`${m[1]}-${m[2]}-${m[3]}`:`${m[6]}-${m[5]}-${m[4]}`;else e.push("12x36 sem data de referência")}
+    else if(J){folgas=String(folg||"").split(/[,\s/]+/).map(x=>DIAS.findIndex(d=>norm(d)===norm(x).slice(0,3))).filter(x=>x>=0);
+      if(J==="6x1"&&folgas.length!==1)e.push("6x1 precisa de 1 folga");if(J==="5x2"&&folgas.length!==2)e.push("5x2 precisa de 2 folgas")}
+    const habs=String(hab||"").split(/,/).map(acharFuncao).filter(Boolean).filter(h=>h!==F);
+    if(e.length)erros.push(`Linha ${i+1} (${nome||"?"}): ${e.join(", ")}`);
+    else IMP.push({nome,loja_id:L.id,funcao:F,jornada:J,hora_entrada:he,hora_saida:hs,folgas,data_base_12x36:base,habilidades:habs,ativo:true});
+  });
+  $("#impPrev").innerHTML=`<b style="color:var(--ok)">${IMP.length} prontos para importar.</b>${erros.length?`<div class="erro" style="margin-top:6px">${erros.length} com problema (não serão importados):</div><ul class="small">${erros.slice(0,30).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}`;
+  $("#btImport").disabled=!IMP.length;
+}
+async function importar(){$("#btImport").disabled=true;
+  if(!ehGestor())IMP=IMP.filter(r=>r.loja_id===EU.loja_id);
+  const {data,error}=await sb.from("escala_colaboradores").insert(IMP).select();
+  if(error){$("#impPrev").innerHTML+=`<div class="erro">Erro: ${esc(error.message)}</div>`;$("#btImport").disabled=false;return}
+  COLABS.push(...data);COLABS.sort((a,b)=>a.nome.localeCompare(b.nome));dImport.close();toast(`${data.length} colaboradores importados`);renderColabs();}
+
+// ---------- USUÁRIOS E LOJAS ----------
+async function renderUsuarios(){
+  const {data}=await sb.from("escala_usuarios").select("*").order("criado_em",{ascending:false});
+  const optL='<option value="">—</option>'+LOJAS.map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join("");
+  $("#usLista").innerHTML=`<table><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Loja (gerente)</th><th></th></tr>${(data||[]).map(u=>`<tr><td><b>${esc(u.nome)}</b>${u.perfil==="pendente"?' <span class="pill p-atestado">Aguardando</span>':""}</td><td class="small">${esc(u.email)}</td>
+   <td><select id="pf-${u.user_id}">${["pendente","gerente","gestor","admin"].map(p=>`<option ${p===u.perfil?"selected":""}>${p}</option>`).join("")}</select></td>
+   <td><select id="lj-${u.user_id}">${optL}</select></td><td><button class="btn sm" onclick="salvarUsuario('${u.user_id}')">Salvar</button></td></tr>`).join("")}</table>`;
+  (data||[]).forEach(u=>{const s=$("#lj-"+u.user_id);if(s)s.value=u.loja_id||""});
+  $("#ljLista").innerHTML=`<table><tr><th>Loja</th><th class="n">Colaboradores</th><th>Ativa</th></tr>${LOJAS.map(l=>`<tr><td>${esc(l.nome)}</td><td class="n">${COLABS.filter(c=>c.loja_id===l.id&&c.ativo).length}</td><td><input type="checkbox" ${l.ativo?"checked":""} onchange="ativarLoja(${l.id},this.checked)" style="min-height:0"></td></tr>`).join("")}</table>`;
+}
+async function salvarUsuario(id){const perfil=$("#pf-"+id).value,loja=$("#lj-"+id).value;
+  if(perfil==="gerente"&&!loja)return toast("Escolha a loja do gerente");
+  const {error}=await sb.from("escala_usuarios").update({perfil,loja_id:loja?+loja:null}).eq("user_id",id);toast(error?"Erro: "+error.message:"Usuário atualizado")}
+$("#fLoja").onsubmit=async e=>{e.preventDefault();const nome=e.target.nome.value.trim();const {data,error}=await sb.from("escala_lojas").insert({nome}).select().single();
+  if(error)return toast("Erro: "+error.message);LOJAS.push(data);LOJAS.sort((a,b)=>a.nome.localeCompare(b.nome));e.target.reset();montarSelects();renderUsuarios();toast("Loja adicionada")};
+async function ativarLoja(id,v){await sb.from("escala_lojas").update({ativo:v}).eq("id",id);LOJAS.find(l=>l.id===id).ativo=v;montarSelects()}
+
+iniciar();
+</script>
+</body>
+</html>
