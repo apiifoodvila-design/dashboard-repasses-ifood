@@ -192,6 +192,7 @@ dialog .df{padding:14px 20px;border-top:1px solid var(--line);display:flex;justi
         <label>Função<select id="mesFuncao"></select></label>
         <button class="btn sec" id="btRestaurar" onclick="restaurarMes()">Restaurar folgas padrão</button>
         <button class="btn sec" onclick="window.print()">Imprimir</button>
+        <button class="btn sec" id="btBaixar" onclick="baixarEscala()">Baixar Excel</button>
       </div>
       <div class="legenda no-print small"><span class="cel c-T">T</span> trabalha &nbsp; <span class="cel c-F">F</span> folga &nbsp; <span class="cel c-FA">FA</span> falta &nbsp; <span class="cel c-AT">AT</span> atestado &nbsp; <span class="cel c-FE">FE</span> férias &nbsp; <span class="cel c-T aj">T</span> alterado pelo gerente &nbsp;·&nbsp; <b>Clique no dia para trocar trabalho ↔ folga.</b></div>
       <div class="card mesCard"><h2 id="mesTitulo"></h2><div class="tbl mesTbl" id="mesGrade"></div></div>
@@ -630,6 +631,55 @@ async function renderAno(lid,fn,y){
   const rod=`<tr class="rod"><td class="nm">Total da equipe</td>${totM.map(t=>`<td style="padding:4px">${t.f}F${t.fa?`<br><span style="color:var(--falta)">${t.fa} FA</span>`:""}${t.at?`<br><span style="color:var(--atest)">${t.at} AT</span>`:""}${t.fe?`<br><span style="color:var(--ferias)">${t.fe} FE</span>`:""}</td>`).join("")}<td></td></tr>`;
   $("#mesGrade").innerHTML=`<table class="grade"><tr><th class="nm">Colaborador</th>${MESES.map(m=>`<th>${m}</th>`).join("")}<th>Ano</th></tr>${html}${rod}</table>`;
   $("#mesAvisos").innerHTML='<div class="small muted">Visão anual: dias de folga (F), faltas (vermelho), atestados (laranja) e férias (azul) por mês. Clique num mês para abrir a escala dele.</div>';
+}
+function carregarXLSX(){
+  if(window.XLSX)return Promise.resolve();
+  return new Promise((ok,erro)=>{const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js";s.onload=ok;s.onerror=()=>erro(new Error("Não foi possível carregar o gerador de Excel."));document.head.appendChild(s)});
+}
+async function baixarEscala(){
+  const tb=document.querySelector("#mesGrade table");
+  if(!tb){alert("Não há escala para baixar neste filtro.");return}
+  const bt=$("#btBaixar"),txt=bt.textContent;bt.disabled=true;bt.textContent="Gerando…";
+  try{
+    await carregarXLSX();
+    const CORES={T:["E9F6F0","1E7F5C"],F:["6E6E6E","FFFFFF"],FA:["C2392F","FFFFFF"],AT:["B86A00","FFFFFF"],FE:["2E5AA8","FFFFFF"]};
+    const borda={style:"thin",color:{rgb:"D0D0D0"}},B={top:borda,bottom:borda,left:borda,right:borda};
+    const titulo=$("#mesTitulo").textContent;
+    const linhas=[[{v:titulo,t:"s",s:{font:{bold:true,sz:14}}}],[]];
+    const merges=[];let maxCol=1;
+    [...tb.rows].forEach(tr=>{
+      const r=linhas.length,lin=[];
+      const sep=tr.classList.contains("sep"),rod=tr.classList.contains("rod");
+      [...tr.cells].forEach(td=>{
+        const span=td.colSpan||1;
+        const cel=td.querySelector(".cel");
+        let v=(td.innerText||td.textContent).replace(/\s*\n\s*/g," · ").trim();
+        const n=/^\d+$/.test(v)?+v:null;
+        const s={border:B,alignment:{horizontal:td.classList.contains("nm")?"left":"center",vertical:"center",wrapText:true},font:{}};
+        if(td.tagName==="TH"){s.font.bold=true;s.fill={fgColor:{rgb:td.classList.contains("we")?"FFF3D6":"F2F2F2"}};v=v.replace(" · ","\n")}
+        if(sep){s.font.bold=true;s.fill={fgColor:{rgb:"E8E8E8"}}}
+        if(rod){s.font.bold=true;s.fill={fgColor:{rgb:"F7F7F7"}};if(n===0&&!td.classList.contains("nm"))s.font.color={rgb:"C2392F"}}
+        if(cel){const k=[...cel.classList].find(x=>CORES[x.slice(2)]&&x.startsWith("c-"));if(k){const[bg,fg]=CORES[k.slice(2)];s.fill={fgColor:{rgb:bg}};s.font={bold:true,color:{rgb:fg}}}
+          if(cel.classList.contains("aj"))s.border={...B,top:{style:"medium",color:{rgb:"E79A1A"}}}}
+        if(td.classList.contains("tot"))s.font.bold=true;
+        if(sep&&!td.classList.contains("nm"))v="";
+        lin.push(n!==null&&!cel?{v:n,t:"n",s}:{v,t:"s",s});
+        for(let i=1;i<span;i++)lin.push({v:"",t:"s",s});
+        if(span>1)merges.push({s:{r,c:lin.length-span},e:{r,c:lin.length-1}});
+      });
+      maxCol=Math.max(maxCol,lin.length);linhas.push(lin);
+    });
+    linhas.push([],[{v:"Legenda: T = trabalha · F = folga · FA = falta · AT = atestado · FE = férias · borda laranja = alterado pelo gerente",t:"s",s:{font:{italic:true,sz:9,color:{rgb:"6E6E6E"}}}}]);
+    const ws=XLSX.utils.aoa_to_sheet(linhas);
+    ws["!merges"]=[{s:{r:0,c:0},e:{r:0,c:maxCol-1}},...merges];
+    ws["!cols"]=[{wch:34},...Array(maxCol-1).fill(0).map(()=>({wch:maxCol>20?5:10}))];
+    ws["!rows"]=[{hpt:22},{},{hpt:30}];
+    ws["!freeze"]={xSplit:1,ySplit:3};ws["!views"]=[{state:"frozen",xSplit:1,ySplit:3}];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Escala");
+    const nome=("Escala "+titulo).replace(/[\\/:*?"<>|]/g,"-").replace(/\s+/g," ").slice(0,120)+".xlsx";
+    XLSX.writeFile(wb,nome);
+  }catch(e){alert(e.message||"Erro ao gerar o Excel.")}
+  finally{bt.disabled=false;bt.textContent=txt}
 }
 function abrirMes(y,m){$("#mesPeriodo").value="mes";$("#mesRef").value=iso(new Date(y,m,1));renderMes()}
 async function alternarDia(cid,d){
