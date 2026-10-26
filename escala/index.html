@@ -341,7 +341,7 @@ João Souza | Sion (Loja 3) | Cozinheiro | 12x36 | 08:00 | 20:00 | 2026-10-20 | 
 const SB_URL="https://dxgmxqrmtvqwmrkjyjwt.supabase.co";
 const SB_KEY="sb_publishable_2Pz2mftDBu09FVDIt6df7Q_-iSc3AI8";
 const sb=supabase.createClient(SB_URL,SB_KEY);
-const FUNCOES=["Gerente","Subgerente","Caixa","Atendente","Garçom","Cozinheiro","Auxiliar de cozinha","Assador de frango","Saladeiro(a)"];
+const FUNCOES=["Gerente","Subgerente","Caixa","Atendente","Garçom","Cozinheiro","Auxiliar de cozinha","Assador de frango","Saladeiro(a)","Padeiro","Auxiliar de padeiro","Confeiteiro(a)","Auxiliar de confeitaria"];
 const DIAS=["dom","seg","ter","qua","qui","sex","sáb"];
 const TIPO={falta:"Falta",atestado:"Atestado",ferias:"Férias"};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -452,7 +452,7 @@ function montarSelects(){
   $$(".selLojaReal").forEach(s=>{ s.innerHTML=opts; if(!ehGestor()){s.value=EU.loja_id;s.disabled=true;} });
   $$(".selFuncao").forEach(s=>s.innerHTML=FUNCOES.map(f=>`<option>${f}</option>`).join(""));
   $("#coFuncao").innerHTML='<option value="">Todas</option>'+FUNCOES.map(f=>`<option>${f}</option>`).join("");
-  let h="";for(let m=6*60;m<=22*60;m+=10){const t=String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");h+=`<option value="${t}">${t}</option>`}
+  let h="";for(let m=4*60;m<=23*60+30;m+=10){const t=String(Math.floor(m/60)).padStart(2,"0")+":"+String(m%60).padStart(2,"0");h+=`<option value="${t}">${t}</option>`}
   $$(".selHora").forEach(s=>s.innerHTML=h);
   $("#chHab").innerHTML=FUNCOES.map(f=>`<label><input type="checkbox" name="hab" value="${f}"> ${f}</label>`).join("");
   $("#chFolgas").innerHTML=DIAS.map((d,i)=>`<label><input type="checkbox" name="folga" value="${i}"> ${d}</label>`).join("");
@@ -881,7 +881,7 @@ function previaImport(){
   linhas.forEach((l,i)=>{const p=l.split(/\t|;|\|/).map(x=>x.trim());if(i===0&&norm(p[0])==="nome")return;
     const [nome,loja,funcao,jor,ent,sai,folg,hab]=p;const L=acharLoja(loja),F=acharFuncao(funcao),J=["6x1","5x2","12x36"].find(x=>norm(jor).replace(/\s/g,"")===x);
     const e=[];if(!nome)e.push("sem nome");if(!L)e.push(`loja "${loja}" não encontrada`);if(!F)e.push(`função "${funcao}" inválida`);if(!J)e.push(`jornada "${jor}" inválida`);
-    const he=hora(ent),hs=hora(sai);if(!he||!hs||he<"06:00"||hs>"22:00"||hs<=he)e.push("horário inválido (06:00 a 22:00)");
+    const he=hora(ent),hs=hora(sai);if(!he||!hs||he<"04:00"||hs>"23:30"||hs<=he)e.push("horário inválido (04:00 a 23:30)");
     let folgas=[],base=null;
     if(J==="12x36"){const m=String(folg||"").match(/(\d{4})-(\d{2})-(\d{2})|(\d{2})\/(\d{2})\/(\d{4})/);if(m)base=m[1]?`${m[1]}-${m[2]}-${m[3]}`:`${m[6]}-${m[5]}-${m[4]}`;else e.push("12x36 sem data de referência")}
     else if(J){folgas=String(folg||"").split(/[,\s/]+/).map(x=>DIAS.findIndex(d=>norm(d)===norm(x).slice(0,3))).filter(x=>x>=0);
