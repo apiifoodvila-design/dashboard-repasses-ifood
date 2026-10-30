@@ -376,6 +376,9 @@ const br=s=>s?s.slice(8,10)+"/"+s.slice(5,7)+"/"+s.slice(0,4):"";
 const brCurto=s=>s?s.slice(8,10)+"/"+s.slice(5,7):"";
 const diffDias=(a,b)=>Math.round((parse(a)-parse(b))/864e5);
 const hm=t=>t?t.slice(0,5):"";
+const ERROS=[];function mostrarErro(onde,e){if(!e)return;const m=onde+": "+(e.message||e)+(e.code?" ["+e.code+"]":"")+(e.details?" — "+e.details:"")+(e.hint?" — "+e.hint:"");ERROS.push(m);console.error(m);
+  let b=document.getElementById("errBanner");if(!b){b=document.createElement("div");b.id="errBanner";b.style.cssText="position:fixed;left:8px;right:8px;bottom:8px;z-index:9999;background:#fff3f2;border:2px solid #C2392F;color:#7a1d16;padding:10px 12px;border-radius:10px;font:13px/1.4 monospace;max-height:40vh;overflow:auto";document.body.append(b)}
+  b.innerHTML="<b>Erro ao carregar dados (mande print disto):</b><br>"+ERROS.map(x=>x.replace(/[<>&]/g,"")).join("<br>")}
 function toast(m){const t=document.createElement("div");t.className="toast";t.textContent=m;document.body.append(t);setTimeout(()=>t.remove(),3200)}
 
 // ---------- regra da escala ----------
@@ -438,7 +441,7 @@ async function iniciar(){
   if(!session){$("#telaLogin").classList.remove("hidden");return}
   const ehFabio=session.user.email.toLowerCase()==="fabio@vilaarabe.com.br";
   const lerPerfil=async()=>{for(let i=0;i<2;i++){
-      const a=await sb.rpc("escala_meu_usuario"); if(!a.error&&a.data)return a.data;
+      const a=await sb.rpc("escala_meu_usuario"); if(!a.error&&a.data)return a.data; if(a.error)mostrarErro("perfil (rpc)",a.error);
       const r=await sb.from("escala_usuarios").select("*").eq("user_id",session.user.id).maybeSingle();if(!r.error&&r.data)return r.data;
       if(!a.error&&!r.error)return null; await new Promise(f=>setTimeout(f,400))}return null};
   let u=await lerPerfil();
@@ -455,6 +458,7 @@ async function iniciar(){
 
 async function carregarBase(){
   const [l,c]=await Promise.all([sb.from("escala_lojas").select("*").order("nome"),sb.from("escala_colaboradores").select("*").order("nome")]);
+  mostrarErro("lojas",l.error);mostrarErro("colaboradores",c.error);
   LOJAS=(l.data||[]).sort(ordLoja); COLABS=c.data||[];
   const ini=addDias(hojeISO(),-60);
   const o=await sb.from("escala_ocorrencias").select("*").gte("data_fim",ini).order("criado_em",{ascending:false}).limit(5000);
