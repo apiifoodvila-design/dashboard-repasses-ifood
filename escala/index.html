@@ -204,7 +204,7 @@ html{-webkit-tap-highlight-color:transparent}
       <div class="card" id="cardMatriz"><h2>Por loja</h2><p class="small muted" style="margin-top:-6px">Presentes / escalados em cada função. Em vermelho, onde há ausência.</p><div class="tbl" id="diaMatriz"></div></div>
       <div class="card"><h2 id="diaAusTit">Ausentes no dia</h2><div id="diaAusentes"></div></div>
       <div class="card"><h2>Coberturas de falta e atestado</h2>
-        <div class="bar" style="margin-bottom:8px"><label>Tipo<select id="diaCobTipo"><option value="">Dobra e deslocamento</option><option value="dobra">Só dobra</option><option value="deslocamento">Só deslocamento</option></select></label></div>
+        <div class="bar" style="margin-bottom:8px"><label>Tipo<select id="diaCobTipo"><option value="">Dobra e deslocamento</option><option value="dobra">Só dobra</option><option value="deslocamento">Só deslocamento</option></select></label><label>Pagamento<select id="diaCobPag"><option value="">Todos</option><option value="dinheiro">Dinheiro</option><option value="folga">Folga</option><option value="nd">Não definido</option></select></label></div>
         <div class="tbl" id="diaCob"></div></div>
       <div class="card"><h2 id="diaEqTit">Equipe do dia</h2>
         <div class="bar" style="margin-bottom:8px"><label>Situação<select id="diaFiltroSit"><option value="">Todas</option><option value="trab">Trabalhando</option><option value="folga">Folga</option><option value="aus">Ausentes</option></select></label></div>
@@ -495,7 +495,7 @@ function montarSelects(){
 
 function ligarEventos(){
   $$("#tabs button").forEach(b=>b.onclick=()=>irPara(b.dataset.t));
-  ["#diaLoja","#diaFiltroSit","#diaCobTipo"].forEach(s=>$(s).onchange=renderDia);
+  ["#diaLoja","#diaFiltroSit","#diaCobTipo","#diaCobPag"].forEach(s=>$(s).onchange=renderDia);
   montarPeriodo("dia","dia",renderDia); montarPeriodo("al","mes",renderAlertas); montarPeriodo("fe","ano",renderFerias);
   ["#alLoja","#alFiltro"].forEach(s=>$(s).onchange=renderAlertas);
   ["#feLoja"].forEach(s=>$(s).onchange=renderFerias);
@@ -577,7 +577,7 @@ async function renderDia(){
     .map(o=>({o,c:COLABS.find(x=>x.id===o.cobertura_colaborador_id),a:COLABS.find(x=>x.id===o.colaborador_id),t:tipoCob(o)}))
     .filter(x=>x.c&&(!lid||x.o.loja_id===+lid||x.c.loja_id===+lid));
   const pessoas=t=>new Set(cobs.filter(x=>x.t===t).map(x=>x.c.id)).size;
-  $("#diaKpis").innerHTML=[["Escalados"+u,tot.esc,""],["Trabalhando"+u,tot.trab,"ok"],["Faltas"+u,tot.falta,"falta"],["Atestados"+u,tot.atestado,"atest"],["Férias"+u,tot.ferias,"ferias"],["De folga"+u,tot.folga,"folga"],["Pessoas que dobraram",pessoas("dobra"),"atest"],["Pessoas deslocadas",pessoas("deslocamento"),"ferias"]]
+  $("#diaKpis").innerHTML=[["Escalados"+u,tot.esc,""],["Trabalhando"+u,tot.trab,"ok"],["Faltas"+u,tot.falta,"falta"],["Atestados"+u,tot.atestado,"atest"],["Férias"+u,tot.ferias,"ferias"],["De folga"+u,tot.folga,"folga"],["Pessoas que dobraram",pessoas("dobra"),"atest"],["Pessoas deslocadas",pessoas("deslocamento"),"ferias"],["Coberturas a pagar em dinheiro",brl(cobs.filter(x=>x.o.cobertura_pagamento==="dinheiro").reduce((t,x)=>t+(+x.o.cobertura_valor||0),0)),"ok"],["Coberturas pagas com folga",cobs.filter(x=>x.o.cobertura_pagamento==="folga").length,"folga"]]
     .map(([t,v,k])=>`<div class="kpi ${k}"><span>${t}</span><strong>${v}</strong></div>`).join("");
   const z=v=>v?v:`<span class="zero">0</span>`;
   const linhas=FUNCOES.filter(f=>porF[f]).map(f=>({f,...porF[f]}));
@@ -594,9 +594,10 @@ async function renderDia(){
   const ids=new Set(cs.map(c=>c.id));
   const aus=OCS.filter(o=>(o.tipo==="falta"||o.tipo==="atestado")&&ids.has(o.colaborador_id)&&o.data_inicio<=P.fim&&o.data_fim>=P.ini).sort((a,b)=>a.data_inicio.localeCompare(b.data_inicio));
   $("#diaAusentes").innerHTML=aus.length?aus.map(o=>cartaoOc(o)).join(""):`<div class="empty">Nenhuma falta ou atestado ${um?"neste dia":"no período"}. 👍</div>`;
-  const ft=$("#diaCobTipo").value, lc=cobs.filter(x=>!ft||x.t===ft).sort((a,b)=>a.o.data_inicio.localeCompare(b.o.data_inicio));
-  $("#diaCob").innerHTML=lc.length?`<table><tr><th>Quem cobriu</th><th>Tipo</th><th>Cobriu</th><th>Motivo</th><th>Loja da ausência</th><th>Data</th></tr>
-   ${lc.map(x=>`<tr><td><b>${esc(x.c.nome)}</b><br><span class="small muted">${esc(x.c.funcao)} · ${esc(lojaNome(x.c.loja_id))}</span></td><td>${pillCob(x.t)}</td><td>${esc(x.a?.nome||"—")}</td><td>${pill(x.o.tipo)}</td><td>${esc(lojaNome(x.o.loja_id))}</td><td class="small">${x.o.data_inicio===x.o.data_fim?br(x.o.data_inicio):br(x.o.data_inicio)+" a "+br(x.o.data_fim)}</td></tr>`).join("")}</table>`
+  const ft=$("#diaCobTipo").value, fp=$("#diaCobPag").value, lc=cobs.filter(x=>(!ft||x.t===ft)&&(!fp||(fp==="nd"?!x.o.cobertura_pagamento:x.o.cobertura_pagamento===fp))).sort((a,b)=>a.o.data_inicio.localeCompare(b.o.data_inicio));
+  $("#diaCob").innerHTML=lc.length?`<table><tr><th>Quem cobriu</th><th>Tipo</th><th>Pagamento</th><th>Cobriu</th><th>Motivo</th><th>Loja da ausência</th><th>Data</th></tr>
+   ${lc.map(x=>`<tr><td><b>${esc(x.c.nome)}</b><br><span class="small muted">${esc(x.c.funcao)} · ${esc(lojaNome(x.c.loja_id))}</span></td><td>${pillCob(x.t)}</td><td>${pagCob(x.o)}</td><td>${esc(x.a?.nome||"—")}</td><td>${pill(x.o.tipo)}</td><td>${esc(lojaNome(x.o.loja_id))}</td><td class="small">${x.o.data_inicio===x.o.data_fim?br(x.o.data_inicio):br(x.o.data_inicio)+" a "+br(x.o.data_fim)}</td></tr>`).join("")}
+   <tr><td colspan="7" style="text-align:right"><b>Total a pagar em dinheiro (lista acima):</b> <b>${brl(lc.filter(x=>x.o.cobertura_pagamento==="dinheiro").reduce((t,x)=>t+(+x.o.cobertura_valor||0),0))}</b> · ${lc.filter(x=>x.o.cobertura_pagamento==="folga").length} paga(s) com folga</td></tr></table>`
    :`<div class="empty">Nenhuma cobertura ${ft==="dobra"?"por dobra ":ft==="deslocamento"?"por deslocamento ":""}${um?"neste dia":"no período"}.</div>`;
   // equipe
   const fs=$("#diaFiltroSit").value;
@@ -618,6 +619,8 @@ async function renderDia(){
 
 // ---------- tipo de cobertura ----------
 function tipoCob(o){if(o.cobertura_tipo)return o.cobertura_tipo;const c=COLABS.find(x=>x.id===o.cobertura_colaborador_id);return c&&c.loja_id!==o.loja_id?"deslocamento":"dobra"}
+const brl=v=>(+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const pagCob=o=>o.cobertura_pagamento==="dinheiro"?`<span class="pill p-trab">Dinheiro${o.cobertura_valor!=null?" · "+brl(o.cobertura_valor):""}</span>`:o.cobertura_pagamento==="folga"?'<span class="pill p-folga">Folga</span>':'<span class="small muted">não definido</span>';
 const pillCob=t=>t==="deslocamento"?'<span class="pill p-ferias">Deslocamento</span>':'<span class="pill p-atestado">Dobra</span>';
 
 // ---------- cartão de ocorrência ----------
@@ -629,7 +632,7 @@ function cartaoOc(o,c){
     <div>${pill(o.tipo)} <b>${esc(c.nome)}</b> · ${esc(c.funcao)} · ${esc(lojaNome(o.loja_id))}</div>
     <div class="small muted">${per} · horário ${hm(c.hora_entrada)}–${hm(c.hora_saida)} · lançado por ${esc(o.criado_por_nome||"—")} em ${new Date(o.criado_em).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"})}</div>
     ${o.observacao?`<div class="small">“${esc(o.observacao)}”</div>`:""}
-    ${cob?`<div class="small" style="margin-top:4px"><span class="pill p-cob">Cobertura</span> ${o.cobertura_colaborador_id?pillCob(tipoCob(o))+" ":""}${esc(cob.nome)}${cob.loja_id?" ("+esc(lojaNome(cob.loja_id))+")":""}</div>`:""}
+    ${cob?`<div class="small" style="margin-top:4px"><span class="pill p-cob">Cobertura</span> ${o.cobertura_colaborador_id?pillCob(tipoCob(o))+" ":""}${esc(cob.nome)}${cob.loja_id?" ("+esc(lojaNome(cob.loja_id))+")":""}${o.cobertura_colaborador_id?" · "+pagCob(o):""}</div>`:""}
     ${o.visto_em?`<div class="small muted">✓ Visto pelo gestor</div>`:""}
   </div><div class="acoes">
     ${ehGestor()&&o.tipo!=="ferias"?`<button class="btn sm" onclick="abrirCobertura(${o.id})">${cob?"Trocar cobertura":"Quem pode cobrir?"}</button>`:""}
@@ -883,16 +886,23 @@ async function abrirCobertura(id){
   $("#cobCorpo").innerHTML=`<p><b>${esc(c.nome)}</b> · ${esc(c.funcao)} · ${esc(lojaNome(o.loja_id))} · ${hm(ini)}–${hm(fim)}<br><span class="small muted">Dia considerado: ${br(dia)}. Lista quem tem a função ou a habilidade de ${esc(c.funcao)} e não está de férias, falta ou atestado.</span></p>
    <div class="card" style="margin:0 0 10px;padding:10px 12px"><b>Tipo de cobertura</b>
      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:6px 0 8px"><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cobTipo" value="dobra" style="min-height:0" ${o.cobertura_tipo==="dobra"?"checked":""}> Dobra (faz turno extra)</label><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cobTipo" value="deslocamento" style="min-height:0" ${o.cobertura_tipo==="deslocamento"?"checked":""}> Deslocamento (vem de outra loja)</label></div>
+     <b>Pagamento</b>
+     <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:6px 0 8px"><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cobPag" value="dinheiro" style="min-height:0" onchange="mostrarValorCob()" ${o.cobertura_pagamento==="dinheiro"?"checked":""}> Dinheiro</label><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cobPag" value="folga" style="min-height:0" onchange="mostrarValorCob()" ${o.cobertura_pagamento==="folga"?"checked":""}> Folga</label>
+       <label id="cobValorBox" class="${o.cobertura_pagamento==="dinheiro"?"":"hidden"}" style="display:flex;gap:6px;align-items:center">Valor R$ <input id="cobValor" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" value="${o.cobertura_valor??""}" style="width:110px"></label></div>
      <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="cobVinc" style="flex:1;min-width:220px"><option value="">Vincular colaborador cadastrado…</option>${COLABS.filter(z=>z.ativo&&z.id!==c.id).sort((a,b)=>a.nome.localeCompare(b.nome)).map(z=>`<option value="${z.id}">${esc(z.nome)} — ${esc(z.funcao)} · ${esc(lojaNome(z.loja_id))}</option>`).join("")}</select><button class="btn sm" onclick="if(!$('#cobVinc').value)return toast('Escolha um colaborador');definirCob(${id},+$('#cobVinc').value)">Vincular</button></div>
      <div class="small muted" style="margin-top:4px">Se não marcar o tipo: mesma loja conta como dobra, outra loja como deslocamento.</div></div>
    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="cobLivre" placeholder="Ou escreva quem vai cobrir (ex.: extra/freelancer)" style="flex:1;min-width:220px"><button class="btn sm sec" onclick="definirCob(${id},null)">Salvar texto</button>${o.cobertura_colaborador_id||o.cobertura_obs?`<button class="btn sm sec" onclick="definirCob(${id},0)">Remover cobertura</button>`:""}</div>
    ${cand.length?`<div class="tbl"><table><tr><th>Nome</th><th>Loja</th><th>Função</th><th>Horário</th><th>Situação no dia</th><th></th></tr>
    ${cand.map(x=>`<tr style="${x.rank>=8?"opacity:.55":""}"><td><b>${esc(x.nome)}</b></td><td>${esc(x.loja)}</td><td>${esc(x.funcao)}${x.principal?"":' <span class="small muted">(habilidade)</span>'}</td><td>${hm(x.hora_entrada)}–${hm(x.hora_saida)}</td><td class="small">${esc(x.motivo)}</td><td><button class="btn sm" onclick="definirCob(${id},${x.id})">Escolher</button></td></tr>`).join("")}</table></div>`:'<div class="empty">Ninguém disponível com essa função ou habilidade. Cadastre habilidades nos colaboradores para ampliar as opções.</div>'}`;
 }
+function mostrarValorCob(){const d=(document.querySelector('input[name="cobPag"]:checked')||{}).value==="dinheiro";$("#cobValorBox").classList.toggle("hidden",!d);if(d)$("#cobValor").focus()}
 async function definirCob(id,cid){
   const o=OCS.find(x=>x.id===id);let tipo=(document.querySelector('input[name="cobTipo"]:checked')||{}).value||null;
   if(cid>0&&!tipo){const z=COLABS.find(x=>x.id===cid);tipo=z&&z.loja_id!==o.loja_id?"deslocamento":"dobra"}
-  const upd=cid===0?{cobertura_colaborador_id:null,cobertura_obs:null,cobertura_tipo:null}:cid===null?{cobertura_colaborador_id:null,cobertura_obs:$("#cobLivre").value.trim()||null,cobertura_tipo:null}:{cobertura_colaborador_id:cid,cobertura_obs:null,cobertura_tipo:tipo};
+  const pag=(document.querySelector('input[name="cobPag"]:checked')||{}).value||null;
+  let valor=null;
+  if(cid>0&&pag==="dinheiro"){valor=parseFloat(String($("#cobValor").value).replace(",","."));if(!(valor>0))return toast("Informe o valor a ser pago em dinheiro")}
+  const upd=cid===0?{cobertura_colaborador_id:null,cobertura_obs:null,cobertura_tipo:null,cobertura_pagamento:null,cobertura_valor:null}:cid===null?{cobertura_colaborador_id:null,cobertura_obs:$("#cobLivre").value.trim()||null,cobertura_tipo:null,cobertura_pagamento:null,cobertura_valor:null}:{cobertura_colaborador_id:cid,cobertura_obs:null,cobertura_tipo:tipo,cobertura_pagamento:pag,cobertura_valor:valor};
   upd.visto_por=EU.user_id;upd.visto_em=new Date().toISOString();
   const {error}=await sb.from("escala_ocorrencias").update(upd).eq("id",id);if(error)return toast("Erro: "+error.message);
   Object.assign(OCS.find(x=>x.id===id),upd);

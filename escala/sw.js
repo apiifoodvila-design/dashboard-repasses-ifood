@@ -1,7 +1,7 @@
 // Service worker do app Escala Vila Árabe.
 // Página sempre buscada na rede primeiro (para receber atualizações na hora);
 // a cópia em cache só é usada sem internet. Dados do Supabase nunca são guardados.
-const CACHE = "escala-va-v1";
+const CACHE = "escala-va-v2";
 const BASE = ["./", "./manifest.webmanifest", "./icons/icon-192.png", "./icons/icon-512.png", "./icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
