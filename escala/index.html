@@ -366,7 +366,7 @@ const DIAS=["dom","seg","ter","qua","qui","sex","sáb"];
 const TIPO={falta:"Falta",atestado:"Atestado",ferias:"Férias"};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let EU=null, LOJAS=[], COLABS=[], OCS=[], AJ={}, AJ_RANGE=[];
+let EU=null, LOJAS=[], COLABS=[], REDE=[], OCS=[], AJ={}, AJ_RANGE=[];
 
 // ---------- datas ----------
 const hojeISO=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
@@ -404,6 +404,8 @@ const numLoja=n=>{const m=String(n).match(/loja\s*(\d+)/i);return m?+m[1]:999};
 const ordLoja=(a,b)=>numLoja(a.nome)-numLoja(b.nome)||a.nome.localeCompare(b.nome);
 const lojaNome=id=>(LOJAS.find(l=>l.id===id)||{}).nome||"—";
 const pill=s=>({trab:'<span class="pill p-trab">Trabalhando</span>',folga:'<span class="pill p-folga">Folga</span>',falta:'<span class="pill p-falta">Falta</span>',atestado:'<span class="pill p-atestado">Atestado</span>',ferias:'<span class="pill p-ferias">Férias</span>',cobrindo:'<span class="pill p-cob">Cobrindo outra loja</span>'}[s]||s);
+const colabPorId=id=>COLABS.find(x=>x.id===id)||REDE.find(x=>x.id===id);
+const podeCobrir=o=>EU&&(ehGestor()||(EU.perfil==="gerente"&&o.loja_id===EU.loja_id));
 const ehGestor=()=>EU&&(EU.perfil==="gestor"||EU.perfil==="admin");
 
 // ---------- auth ----------
@@ -463,6 +465,7 @@ async function carregarBase(){
   if(!l.error&&!(l.data||[]).length){const {data:{session:ss}}=await sb.auth.getSession();const t=ss?.access_token||"";let sub="?";try{sub=JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))).sub}catch(e){}
     const pr=await sb.rpc("escala_meu_usuario");mostrarErro("diagnóstico",{message:`0 lojas recebidas; usuário do token=${sub}; perfil no banco=${pr.data?pr.data.perfil:"(nenhum)"}${pr.error?" erro="+pr.error.message:""}; token ${t.length} caracteres`})}
   LOJAS=(l.data||[]).sort(ordLoja); COLABS=c.data||[];
+  {const r=await sb.rpc("escala_colabs_rede");REDE=r.error?[]:(r.data||[]).map(x=>({...x,ativo:true}))}
   const ini=addDias(hojeISO(),-60);
   const o=await sb.from("escala_ocorrencias").select("*").gte("data_fim",ini).order("criado_em",{ascending:false}).limit(5000);
   OCS=o.data||[]; atualizarBadge();
@@ -574,13 +577,13 @@ async function renderDia(){
     for(const c of cs){const s=situacao(c,d).s;if(s==="cobrindo")continue;
       somar(tot,s);somar(porF[c.funcao]=porF[c.funcao]||Z(),s);const k=c.loja_id+"|"+c.funcao;somar(porLF[k]=porLF[k]||Z(),s);somar(porC[c.id]=porC[c.id]||Z(),s)}
     // quem veio de outra loja cobrir
-    for(const o of OCS){if(!o.cobertura_colaborador_id||o.data_inicio>d||o.data_fim<d||(lid&&o.loja_id!==+lid)||!turnoOc(o))continue;const c=COLABS.find(x=>x.id===o.cobertura_colaborador_id);if(!c||c.loja_id===o.loja_id)continue;
+    for(const o of OCS){if(!o.cobertura_colaborador_id||o.data_inicio>d||o.data_fim<d||(lid&&o.loja_id!==+lid)||!turnoOc(o))continue;const c=colabPorId(o.cobertura_colaborador_id);if(!c||c.loja_id===o.loja_id)continue;
       tot.trab++;tot.vin++;(porF[c.funcao]=porF[c.funcao]||Z()).trab++;porF[c.funcao].vin++;const k=o.loja_id+"|"+c.funcao;(porLF[k]=porLF[k]||Z()).trab++}
   }
   const u=um?"":" (dias)";
   // coberturas: pessoas que dobraram ou se deslocaram para cobrir falta/atestado
   const cobs=OCS.filter(o=>o.cobertura_colaborador_id&&(o.tipo==="falta"||o.tipo==="atestado")&&o.data_inicio<=P.fim&&o.data_fim>=P.ini)
-    .map(o=>({o,c:COLABS.find(x=>x.id===o.cobertura_colaborador_id),a:COLABS.find(x=>x.id===o.colaborador_id),t:tipoCob(o)}))
+    .map(o=>({o,c:colabPorId(o.cobertura_colaborador_id),a:colabPorId(o.colaborador_id),t:tipoCob(o)}))
     .filter(x=>x.c&&(!lid||x.o.loja_id===+lid||x.c.loja_id===+lid)&&noTurno(x.a,tn));
   const pessoas=t=>new Set(cobs.filter(x=>x.t===t).map(x=>x.c.id)).size;
   $("#diaKpis").innerHTML=[["Escalados"+u,tot.esc,""],["Trabalhando"+u,tot.trab,"ok"],["Faltas"+u,tot.falta,"falta"],["Atestados"+u,tot.atestado,"atest"],["Férias"+u,tot.ferias,"ferias"],["De folga"+u,tot.folga,"folga"],["Pessoas que dobraram",pessoas("dobra"),"atest"],["Pessoas deslocadas",pessoas("deslocamento"),"ferias"],["Coberturas a pagar em dinheiro",brl(cobs.filter(x=>x.o.cobertura_pagamento==="dinheiro").reduce((t,x)=>t+(+x.o.cobertura_valor||0),0)),"ok"],["Coberturas pagas com folga",cobs.filter(x=>x.o.cobertura_pagamento==="folga").length,"folga"]]
@@ -601,15 +604,15 @@ async function renderDia(){
   const aus=OCS.filter(o=>(o.tipo==="falta"||o.tipo==="atestado")&&ids.has(o.colaborador_id)&&o.data_inicio<=P.fim&&o.data_fim>=P.ini).sort((a,b)=>a.data_inicio.localeCompare(b.data_inicio));
   $("#diaAusentes").innerHTML=aus.length?aus.map(o=>cartaoOc(o)).join(""):`<div class="empty">Nenhuma falta ou atestado ${um?"neste dia":"no período"}. 👍</div>`;
   const ft=$("#diaCobTipo").value, fp=$("#diaCobPag").value, lc=cobs.filter(x=>(!ft||x.t===ft)&&(!fp||(fp==="nd"?!x.o.cobertura_pagamento:x.o.cobertura_pagamento===fp))).sort((a,b)=>a.o.data_inicio.localeCompare(b.o.data_inicio));
-  $("#diaCob").innerHTML=lc.length?`<table><tr><th>Quem cobriu</th><th>Tipo</th><th>Pagamento</th><th>Cobriu</th><th>Motivo</th><th>Loja da ausência</th><th>Data</th>${ehGestor()?"<th></th>":""}</tr>
-   ${lc.map(x=>`<tr><td><b>${esc(x.c.nome)}</b><br><span class="small muted">${esc(x.c.funcao)} · ${esc(lojaNome(x.c.loja_id))}</span></td><td>${pillCob(x.t)}</td><td>${pagCob(x.o)}</td><td>${esc(x.a?.nome||"—")}</td><td>${pill(x.o.tipo)}</td><td>${esc(lojaNome(x.o.loja_id))}</td><td class="small">${x.o.data_inicio===x.o.data_fim?br(x.o.data_inicio):br(x.o.data_inicio)+" a "+br(x.o.data_fim)}</td>${ehGestor()?`<td><button class="btn sm sec" onclick="abrirCobertura(${x.o.id})">Editar</button></td>`:""}</tr>`).join("")}
-   <tr><td colspan="${ehGestor()?8:7}" style="text-align:right"><b>Total a pagar em dinheiro (lista acima):</b> <b>${brl(lc.filter(x=>x.o.cobertura_pagamento==="dinheiro").reduce((t,x)=>t+(+x.o.cobertura_valor||0),0))}</b> · ${lc.filter(x=>x.o.cobertura_pagamento==="folga").length} paga(s) com folga</td></tr></table>`
+  $("#diaCob").innerHTML=lc.length?`<table><tr><th>Quem cobriu</th><th>Tipo</th><th>Pagamento</th><th>Cobriu</th><th>Motivo</th><th>Loja da ausência</th><th>Data</th><th></th></tr>
+   ${lc.map(x=>`<tr><td><b>${esc(x.c.nome)}</b><br><span class="small muted">${esc(x.c.funcao)} · ${esc(lojaNome(x.c.loja_id))}</span></td><td>${pillCob(x.t)}</td><td>${pagCob(x.o)}</td><td>${esc(x.a?.nome||"—")}</td><td>${pill(x.o.tipo)}</td><td>${esc(lojaNome(x.o.loja_id))}</td><td class="small">${x.o.data_inicio===x.o.data_fim?br(x.o.data_inicio):br(x.o.data_inicio)+" a "+br(x.o.data_fim)}</td><td>${podeCobrir(x.o)?`<button class="btn sm sec" onclick="abrirCobertura(${x.o.id})">Editar</button>`:""}</td></tr>`).join("")}
+   <tr><td colspan="8" style="text-align:right"><b>Total a pagar em dinheiro (lista acima):</b> <b>${brl(lc.filter(x=>x.o.cobertura_pagamento==="dinheiro").reduce((t,x)=>t+(+x.o.cobertura_valor||0),0))}</b> · ${lc.filter(x=>x.o.cobertura_pagamento==="folga").length} paga(s) com folga</td></tr></table>`
    :`<div class="empty">Nenhuma cobertura ${ft==="dobra"?"por dobra ":ft==="deslocamento"?"por deslocamento ":""}${um?"neste dia":"no período"}.</div>`;
   // equipe
   const fs=$("#diaFiltroSit").value;
   if(um){
     const d=dias[0];const base=cs.map(c=>({c,...situacao(c,d)}));
-    const vindos=COLABS.filter(c=>c.ativo&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=d&&o.data_fim>=d&&(!lid||o.loja_id===+lid)&&o.loja_id!==c.loja_id&&turnoOc(o)));
+    const vindos=(REDE.length?REDE:COLABS).filter(c=>c.ativo&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=d&&o.data_fim>=d&&(!lid||o.loja_id===+lid)&&o.loja_id!==c.loja_id&&turnoOc(o)));
     let eq=base.filter(x=>!fs||(fs==="trab"&&x.s==="trab")||(fs==="folga"&&x.s==="folga")||(fs==="aus"&&["falta","atestado","ferias"].includes(x.s)));
     eq=eq.concat(fs&&fs!=="trab"?[]:vindos.map(c=>({c,s:"veio"})));
     eq.sort((a,b)=>numLoja(lojaNome(a.c.loja_id))-numLoja(lojaNome(b.c.loja_id))||FUNCOES.indexOf(a.c.funcao)-FUNCOES.indexOf(b.c.funcao)||a.c.nome.localeCompare(b.c.nome));
@@ -624,7 +627,7 @@ async function renderDia(){
 }
 
 // ---------- tipo de cobertura ----------
-function tipoCob(o){if(o.cobertura_tipo)return o.cobertura_tipo;const c=COLABS.find(x=>x.id===o.cobertura_colaborador_id);return c&&c.loja_id!==o.loja_id?"deslocamento":"dobra"}
+function tipoCob(o){if(o.cobertura_tipo)return o.cobertura_tipo;const c=colabPorId(o.cobertura_colaborador_id);return c&&c.loja_id!==o.loja_id?"deslocamento":"dobra"}
 const brl=v=>(+v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const pagCob=o=>o.cobertura_pagamento==="dinheiro"?`<span class="pill p-trab">Dinheiro${o.cobertura_valor!=null?" · "+brl(o.cobertura_valor):""}</span>`:o.cobertura_pagamento==="folga"?'<span class="pill p-folga">Folga</span>':'<span class="small muted">não definido</span>';
 const pillCob=t=>t==="deslocamento"?'<span class="pill p-ferias">Deslocamento</span>':'<span class="pill p-atestado">Dobra</span>';
@@ -632,7 +635,7 @@ const pillCob=t=>t==="deslocamento"?'<span class="pill p-ferias">Deslocamento</s
 // ---------- cartão de ocorrência ----------
 function cartaoOc(o,c){
   c=c||COLABS.find(x=>x.id===o.colaborador_id)||{nome:"(colaborador)",funcao:"",hora_entrada:"",hora_saida:""};
-  const cob=o.cobertura_colaborador_id?(COLABS.find(x=>x.id===o.cobertura_colaborador_id)||{nome:o.cobertura_obs||"definida"}):null;
+  const cob=o.cobertura_colaborador_id?(colabPorId(o.cobertura_colaborador_id)||{nome:o.cobertura_obs||"definida"}):(o.cobertura_obs?{nome:o.cobertura_obs}:null);
   const per=o.data_inicio===o.data_fim?br(o.data_inicio):br(o.data_inicio)+" a "+br(o.data_fim);
   return `<div class="alerta ${o.tipo} ${o.visto_em?"visto":""}"><div class="info">
     <div>${pill(o.tipo)} <b>${esc(c.nome)}</b> · ${esc(c.funcao)} · ${esc(lojaNome(o.loja_id))}</div>
@@ -641,7 +644,7 @@ function cartaoOc(o,c){
     ${cob?`<div class="small" style="margin-top:4px"><span class="pill p-cob">Cobertura</span> ${o.cobertura_colaborador_id?pillCob(tipoCob(o))+" ":""}${esc(cob.nome)}${cob.loja_id?" ("+esc(lojaNome(cob.loja_id))+")":""}${o.cobertura_colaborador_id?" · "+pagCob(o):""}</div>`:""}
     ${o.visto_em?`<div class="small muted">✓ Visto pelo gestor</div>`:""}
   </div><div class="acoes">
-    ${ehGestor()&&o.tipo!=="ferias"?`<button class="btn sm" onclick="abrirCobertura(${o.id})">${cob?"Editar cobertura":"Quem pode cobrir?"}</button>`:""}
+    ${podeCobrir(o)&&o.tipo!=="ferias"?`<button class="btn sm" onclick="abrirCobertura(${o.id})">${cob?"Editar cobertura":"Quem pode cobrir?"}</button>`:""}
     ${ehGestor()&&!o.visto_em?`<button class="btn sm sec" onclick="marcarVisto(${o.id})">Marcar como visto</button>`:""}
     ${(ehGestor()||o.criado_por===EU.user_id)?`<button class="btn sm sec" onclick="excluirOc(${o.id})">Excluir</button>`:""}
   </div></div>`;
@@ -879,18 +882,19 @@ async function abrirCobertura(id){
     const esc_=x.ajuste?x.ajuste==="T":escalado({...x,ativo:true},dia); const jaCobre=OCS.some(z=>z.cobertura_colaborador_id===x.id&&z.data_inicio<=dia&&z.data_fim>=dia);
     const sobrep=x.hora_entrada<fim&&x.hora_saida>ini; const mesmaLoja=x.loja_id===o.loja_id;
     // sobra na loja de origem: quantos da mesma função estão trabalhando lá
-    const naOrigem=COLABS.filter(z=>z.loja_id===x.loja_id&&z.funcao===c.funcao&&situacao(z,dia).s==="trab").length;
+    const naOrigem=!ehGestor()?-1:COLABS.filter(z=>z.loja_id===x.loja_id&&z.funcao===c.funcao&&situacao(z,dia).s==="trab").length;
     let rank=0,motivo="";
     if(jaCobre){rank=9;motivo="Já está cobrindo outra ausência"}
     else if(!esc_){rank=1;motivo="Está de folga neste dia (pode fazer extra)"}
     else if(mesmaLoja&&!sobrep){rank=2;motivo="Mesma loja, outro turno (pode dobrar/estender)"}
     else if(!mesmaLoja&&naOrigem>=2){rank=3;motivo=`Trabalhando em ${x.loja} — a loja tem ${naOrigem} nessa função hoje`}
+    else if(!mesmaLoja&&naOrigem<0){rank=4;motivo=`Trabalhando em ${x.loja}`}
     else if(!mesmaLoja){rank=5;motivo=`Trabalhando em ${x.loja} — único(a) nessa função lá`}
     else {rank=8;motivo="Já está trabalhando no mesmo horário nesta loja"}
     return {...x,rank,motivo,principal:x.funcao===c.funcao};
   }).sort((a,b)=>a.rank-b.rank||(b.principal-a.principal)||a.nome.localeCompare(b.nome));
   $("#cobCorpo").innerHTML=`<p><b>${esc(c.nome)}</b> · ${esc(c.funcao)} · ${esc(lojaNome(o.loja_id))} · ${hm(ini)}–${hm(fim)}<br><span class="small muted">Dia considerado: ${br(dia)}. Lista quem tem a função ou a habilidade de ${esc(c.funcao)} e não está de férias, falta ou atestado.</span></p>
-   ${o.cobertura_colaborador_id?`<div class="small" style="margin:-4px 0 8px"><span class="pill p-cob">Editando</span> Cobertura atual: <b>${esc((COLABS.find(z=>z.id===o.cobertura_colaborador_id)||{}).nome||"")}</b>. Altere tipo, pagamento, valor ou a pessoa e clique em <b>Salvar alterações</b>.
+   ${o.cobertura_colaborador_id?`<div class="small" style="margin:-4px 0 8px"><span class="pill p-cob">Editando</span> Cobertura atual: <b>${esc((colabPorId(o.cobertura_colaborador_id)||{}).nome||"")}</b>. Altere tipo, pagamento, valor ou a pessoa e clique em <b>Salvar alterações</b>.
      <div style="margin-top:6px"><button class="btn sm sec" style="color:var(--falta)" onclick="if(confirm('Excluir quem ia cobrir? A falta/atestado continua lançada, só fica sem cobertura.'))definirCob(${id},0)">Excluir quem ia cobrir</button></div></div>`:o.cobertura_obs?`<div class="small" style="margin:-4px 0 8px"><span class="pill p-cob">Editando</span> Cobertura atual: <b>${esc(o.cobertura_obs)}</b>
      <div style="margin-top:6px"><button class="btn sm sec" style="color:var(--falta)" onclick="if(confirm('Excluir quem ia cobrir? A falta/atestado continua lançada, só fica sem cobertura.'))definirCob(${id},0)">Excluir quem ia cobrir</button></div></div>`:""}
    <div class="card" style="margin:0 0 10px;padding:10px 12px"><b>Tipo de cobertura</b>
@@ -898,7 +902,7 @@ async function abrirCobertura(id){
      <b>Pagamento</b>
      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:6px 0 8px"><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cobPag" value="dinheiro" style="min-height:0" onchange="mostrarValorCob()" ${o.cobertura_pagamento==="dinheiro"?"checked":""}> Dinheiro</label><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cobPag" value="folga" style="min-height:0" onchange="mostrarValorCob()" ${o.cobertura_pagamento==="folga"?"checked":""}> Folga</label>
        <label id="cobValorBox" class="${o.cobertura_pagamento==="dinheiro"?"":"hidden"}" style="display:flex;gap:6px;align-items:center">Valor R$ <input id="cobValor" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0,00" value="${o.cobertura_valor??""}" style="width:110px"></label></div>
-     <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="cobVinc" style="flex:1;min-width:220px"><option value="">Vincular colaborador cadastrado…</option>${COLABS.filter(z=>z.ativo&&z.id!==c.id).sort((a,b)=>a.nome.localeCompare(b.nome)).map(z=>`<option value="${z.id}" ${z.id===o.cobertura_colaborador_id?"selected":""}>${esc(z.nome)} — ${esc(z.funcao)} · ${esc(lojaNome(z.loja_id))}</option>`).join("")}</select><button class="btn sm" onclick="if(!$('#cobVinc').value)return toast('Escolha um colaborador');definirCob(${id},+$('#cobVinc').value)">${o.cobertura_colaborador_id?"Salvar alterações":"Vincular"}</button></div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="cobVinc" style="flex:1;min-width:220px"><option value="">Vincular colaborador cadastrado…</option>${(REDE.length?REDE:COLABS).filter(z=>z.ativo&&z.id!==c.id).sort((a,b)=>a.nome.localeCompare(b.nome)).map(z=>`<option value="${z.id}" ${z.id===o.cobertura_colaborador_id?"selected":""}>${esc(z.nome)} — ${esc(z.funcao)} · ${esc(lojaNome(z.loja_id))}</option>`).join("")}</select><button class="btn sm" onclick="if(!$('#cobVinc').value)return toast('Escolha um colaborador');definirCob(${id},+$('#cobVinc').value)">${o.cobertura_colaborador_id?"Salvar alterações":"Vincular"}</button></div>
      <div class="small muted" style="margin-top:4px">Se não marcar o tipo: mesma loja conta como dobra, outra loja como deslocamento.</div></div>
    <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap"><input id="cobLivre" value="${esc(o.cobertura_obs||"")}" placeholder="Ou escreva quem vai cobrir (ex.: extra/freelancer)" style="flex:1;min-width:220px"><button class="btn sm sec" onclick="definirCob(${id},null)">Salvar texto</button></div>
    ${cand.length?`<div class="tbl"><table><tr><th>Nome</th><th>Loja</th><th>Função</th><th>Horário</th><th>Situação no dia</th><th></th></tr>
@@ -912,9 +916,9 @@ async function definirCob(id,cid){
   let valor=null;
   if(cid>0&&pag==="dinheiro"){valor=parseFloat(String($("#cobValor").value).replace(",","."));if(!(valor>0))return toast("Informe o valor a ser pago em dinheiro")}
   const upd=cid===0?{cobertura_colaborador_id:null,cobertura_obs:null,cobertura_tipo:null,cobertura_pagamento:null,cobertura_valor:null}:cid===null?{cobertura_colaborador_id:null,cobertura_obs:$("#cobLivre").value.trim()||null,cobertura_tipo:null,cobertura_pagamento:null,cobertura_valor:null}:{cobertura_colaborador_id:cid,cobertura_obs:null,cobertura_tipo:tipo,cobertura_pagamento:pag,cobertura_valor:valor};
-  upd.visto_por=EU.user_id;upd.visto_em=new Date().toISOString();
+  if(ehGestor()){upd.visto_por=EU.user_id;upd.visto_em=new Date().toISOString()}
   const {error}=await sb.from("escala_ocorrencias").update(upd).eq("id",id);if(error)return toast("Erro: "+error.message);
-  Object.assign(OCS.find(x=>x.id===id),upd);
+  Object.assign(OCS.find(x=>x.id===id),upd);if(cid>0&&!colabPorId(cid)){const z=REDE.find(x=>x.id===cid);if(z)REDE.push(z)}
   dCob.close();atualizarBadge();toast(cid===0?"Cobertura excluída — a ausência continua lançada":"Cobertura registrada");rerender();
 }
 
@@ -937,6 +941,7 @@ $("#fOc").onsubmit=async e=>{e.preventDefault();const f=e.target;$("#erroOc").te
   const {data,error}=await sb.from("escala_ocorrencias").insert(row).select().single();btn.disabled=false;
   if(error)return $("#erroOc").textContent="Erro: "+error.message;
   OCS.unshift(data);f.obs.value="";toast(f.tipo.value==="ferias"?"Férias lançadas":"Lançado! O gestor já vê o alerta no painel.");atualizarBadge();renderLancar();
+  if(data.tipo!=="ferias"&&podeCobrir(data))abrirCobertura(data.id);
 };
 
 // ---------- FÉRIAS ----------
