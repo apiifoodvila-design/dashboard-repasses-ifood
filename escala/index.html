@@ -197,6 +197,7 @@ html{-webkit-tap-highlight-color:transparent}
       <div class="bar">
         <span id="diaPeriodo" style="display:contents"></span>
         <label>Loja<select id="diaLoja" class="selLoja"></select></label>
+        <label>Turno<select id="diaTurno"><option value="">Manhã e tarde</option><option value="manha">Manhã</option><option value="tarde">Tarde</option></select></label>
       </div>
       <div class="kpis" id="diaKpis"></div>
       <h2 id="diaTitulo" style="font:800 20px var(--fd);margin:0 0 12px"></h2>
@@ -495,7 +496,7 @@ function montarSelects(){
 
 function ligarEventos(){
   $$("#tabs button").forEach(b=>b.onclick=()=>irPara(b.dataset.t));
-  ["#diaLoja","#diaFiltroSit","#diaCobTipo","#diaCobPag"].forEach(s=>$(s).onchange=renderDia);
+  ["#diaLoja","#diaTurno","#diaFiltroSit","#diaCobTipo","#diaCobPag"].forEach(s=>$(s).onchange=renderDia);
   montarPeriodo("dia","dia",renderDia); montarPeriodo("al","mes",renderAlertas); montarPeriodo("fe","ano",renderFerias);
   ["#alLoja","#alFiltro"].forEach(s=>$(s).onchange=renderAlertas);
   ["#feLoja"].forEach(s=>$(s).onchange=renderFerias);
@@ -551,15 +552,20 @@ async function carregarOcorrencias(ini,fim){
 async function prepararPeriodo(P){await Promise.all([carregarOcorrencias(P.ini,P.fim),carregarAjustes(P.ini,P.fim)])}
 
 // ---------- PAINEL DO DIA ----------
+// turno pelo horário de entrada cadastrado: entra antes das 12:00 = manhã; a partir das 12:00 = tarde
+function turnoDe(c){return c&&c.hora_entrada&&c.hora_entrada<"12:00"?"manha":"tarde"}
+const noTurno=(c,t)=>!t||turnoDe(c)===t;
 function colabsDaLoja(lid){return COLABS.filter(c=>c.ativo&&(!lid||c.loja_id===+lid))}
 async function renderDia(){
   const P=periodo("dia"); await prepararPeriodo(P);
   const lid=$("#diaLoja").value, um=P.n===1, dias=P.dias;
-  $("#diaTitulo").textContent=(lid?lojaNome(+lid)+" — ":"")+P.titulo;
+  const tn=$("#diaTurno").value;
+  $("#diaTitulo").textContent=(lid?lojaNome(+lid)+" — ":"")+P.titulo+(tn?" — turno da "+(tn==="manha"?"manhã":"tarde"):"");
   $("#diaNotaPer").classList.toggle("hidden",um);
   $("#diaAusTit").textContent=um?"Ausentes no dia":"Faltas e atestados no período";
   $("#diaEqTit").textContent=um?"Equipe do dia":"Equipe no período";
-  const cs=colabsDaLoja(lid);
+  const cs=colabsDaLoja(lid).filter(c=>noTurno(c,tn));
+  const turnoOc=o=>noTurno(COLABS.find(x=>x.id===o.colaborador_id),tn); // turno de quem faltou
   // contagens em dias-pessoa
   const Z=()=>({esc:0,trab:0,falta:0,atestado:0,ferias:0,folga:0,vin:0});
   const tot=Z(), porF={}, porLF={}, porC={};
@@ -568,14 +574,14 @@ async function renderDia(){
     for(const c of cs){const s=situacao(c,d).s;if(s==="cobrindo")continue;
       somar(tot,s);somar(porF[c.funcao]=porF[c.funcao]||Z(),s);const k=c.loja_id+"|"+c.funcao;somar(porLF[k]=porLF[k]||Z(),s);somar(porC[c.id]=porC[c.id]||Z(),s)}
     // quem veio de outra loja cobrir
-    for(const o of OCS){if(!o.cobertura_colaborador_id||o.data_inicio>d||o.data_fim<d||(lid&&o.loja_id!==+lid))continue;const c=COLABS.find(x=>x.id===o.cobertura_colaborador_id);if(!c||c.loja_id===o.loja_id)continue;
+    for(const o of OCS){if(!o.cobertura_colaborador_id||o.data_inicio>d||o.data_fim<d||(lid&&o.loja_id!==+lid)||!turnoOc(o))continue;const c=COLABS.find(x=>x.id===o.cobertura_colaborador_id);if(!c||c.loja_id===o.loja_id)continue;
       tot.trab++;tot.vin++;(porF[c.funcao]=porF[c.funcao]||Z()).trab++;porF[c.funcao].vin++;const k=o.loja_id+"|"+c.funcao;(porLF[k]=porLF[k]||Z()).trab++}
   }
   const u=um?"":" (dias)";
   // coberturas: pessoas que dobraram ou se deslocaram para cobrir falta/atestado
   const cobs=OCS.filter(o=>o.cobertura_colaborador_id&&(o.tipo==="falta"||o.tipo==="atestado")&&o.data_inicio<=P.fim&&o.data_fim>=P.ini)
     .map(o=>({o,c:COLABS.find(x=>x.id===o.cobertura_colaborador_id),a:COLABS.find(x=>x.id===o.colaborador_id),t:tipoCob(o)}))
-    .filter(x=>x.c&&(!lid||x.o.loja_id===+lid||x.c.loja_id===+lid));
+    .filter(x=>x.c&&(!lid||x.o.loja_id===+lid||x.c.loja_id===+lid)&&noTurno(x.a,tn));
   const pessoas=t=>new Set(cobs.filter(x=>x.t===t).map(x=>x.c.id)).size;
   $("#diaKpis").innerHTML=[["Escalados"+u,tot.esc,""],["Trabalhando"+u,tot.trab,"ok"],["Faltas"+u,tot.falta,"falta"],["Atestados"+u,tot.atestado,"atest"],["Férias"+u,tot.ferias,"ferias"],["De folga"+u,tot.folga,"folga"],["Pessoas que dobraram",pessoas("dobra"),"atest"],["Pessoas deslocadas",pessoas("deslocamento"),"ferias"],["Coberturas a pagar em dinheiro",brl(cobs.filter(x=>x.o.cobertura_pagamento==="dinheiro").reduce((t,x)=>t+(+x.o.cobertura_valor||0),0)),"ok"],["Coberturas pagas com folga",cobs.filter(x=>x.o.cobertura_pagamento==="folga").length,"folga"]]
     .map(([t,v,k])=>`<div class="kpi ${k}"><span>${t}</span><strong>${v}</strong></div>`).join("");
@@ -603,7 +609,7 @@ async function renderDia(){
   const fs=$("#diaFiltroSit").value;
   if(um){
     const d=dias[0];const base=cs.map(c=>({c,...situacao(c,d)}));
-    const vindos=COLABS.filter(c=>c.ativo&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=d&&o.data_fim>=d&&(!lid||o.loja_id===+lid)&&o.loja_id!==c.loja_id));
+    const vindos=COLABS.filter(c=>c.ativo&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=d&&o.data_fim>=d&&(!lid||o.loja_id===+lid)&&o.loja_id!==c.loja_id&&turnoOc(o)));
     let eq=base.filter(x=>!fs||(fs==="trab"&&x.s==="trab")||(fs==="folga"&&x.s==="folga")||(fs==="aus"&&["falta","atestado","ferias"].includes(x.s)));
     eq=eq.concat(fs&&fs!=="trab"?[]:vindos.map(c=>({c,s:"veio"})));
     eq.sort((a,b)=>numLoja(lojaNome(a.c.loja_id))-numLoja(lojaNome(b.c.loja_id))||FUNCOES.indexOf(a.c.funcao)-FUNCOES.indexOf(b.c.funcao)||a.c.nome.localeCompare(b.c.nome));
