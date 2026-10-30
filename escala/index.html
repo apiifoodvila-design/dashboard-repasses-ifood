@@ -890,7 +890,9 @@ async function abrirCobertura(id){
     return {...x,rank,motivo,principal:x.funcao===c.funcao};
   }).sort((a,b)=>a.rank-b.rank||(b.principal-a.principal)||a.nome.localeCompare(b.nome));
   $("#cobCorpo").innerHTML=`<p><b>${esc(c.nome)}</b> · ${esc(c.funcao)} · ${esc(lojaNome(o.loja_id))} · ${hm(ini)}–${hm(fim)}<br><span class="small muted">Dia considerado: ${br(dia)}. Lista quem tem a função ou a habilidade de ${esc(c.funcao)} e não está de férias, falta ou atestado.</span></p>
-   ${o.cobertura_colaborador_id?`<div class="small" style="margin:-4px 0 8px"><span class="pill p-cob">Editando</span> Cobertura atual: <b>${esc((COLABS.find(z=>z.id===o.cobertura_colaborador_id)||{}).nome||"")}</b>. Altere tipo, pagamento, valor ou a pessoa e clique em <b>Salvar alterações</b>.</div>`:""}
+   ${o.cobertura_colaborador_id?`<div class="small" style="margin:-4px 0 8px"><span class="pill p-cob">Editando</span> Cobertura atual: <b>${esc((COLABS.find(z=>z.id===o.cobertura_colaborador_id)||{}).nome||"")}</b>. Altere tipo, pagamento, valor ou a pessoa e clique em <b>Salvar alterações</b>.
+     <div style="margin-top:6px"><button class="btn sm sec" style="color:var(--falta)" onclick="if(confirm('Excluir quem ia cobrir? A falta/atestado continua lançada, só fica sem cobertura.'))definirCob(${id},0)">Excluir quem ia cobrir</button></div></div>`:o.cobertura_obs?`<div class="small" style="margin:-4px 0 8px"><span class="pill p-cob">Editando</span> Cobertura atual: <b>${esc(o.cobertura_obs)}</b>
+     <div style="margin-top:6px"><button class="btn sm sec" style="color:var(--falta)" onclick="if(confirm('Excluir quem ia cobrir? A falta/atestado continua lançada, só fica sem cobertura.'))definirCob(${id},0)">Excluir quem ia cobrir</button></div></div>`:""}
    <div class="card" style="margin:0 0 10px;padding:10px 12px"><b>Tipo de cobertura</b>
      <div style="display:flex;gap:16px;flex-wrap:wrap;margin:6px 0 8px"><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cobTipo" value="dobra" style="min-height:0" ${(o.cobertura_colaborador_id?tipoCob(o):o.cobertura_tipo)==="dobra"?"checked":""}> Dobra (faz turno extra)</label><label style="display:flex;gap:6px;align-items:center"><input type="radio" name="cobTipo" value="deslocamento" style="min-height:0" ${(o.cobertura_colaborador_id?tipoCob(o):o.cobertura_tipo)==="deslocamento"?"checked":""}> Deslocamento (vem de outra loja)</label></div>
      <b>Pagamento</b>
@@ -913,7 +915,7 @@ async function definirCob(id,cid){
   upd.visto_por=EU.user_id;upd.visto_em=new Date().toISOString();
   const {error}=await sb.from("escala_ocorrencias").update(upd).eq("id",id);if(error)return toast("Erro: "+error.message);
   Object.assign(OCS.find(x=>x.id===id),upd);
-  dCob.close();atualizarBadge();toast("Cobertura registrada");rerender();
+  dCob.close();atualizarBadge();toast(cid===0?"Cobertura excluída — a ausência continua lançada":"Cobertura registrada");rerender();
 }
 
 // ---------- LANÇAR ----------
