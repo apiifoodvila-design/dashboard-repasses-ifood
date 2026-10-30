@@ -238,12 +238,12 @@ html{-webkit-tap-highlight-color:transparent}
         <label>Mês<input type="month" id="fgMes"></label>
         <div style="display:flex;gap:4px"><button class="btn sec" onclick="navFolgas(-1)" title="Mês anterior">◀</button><button class="btn sec" onclick="navFolgas(0)">Hoje</button><button class="btn sec" onclick="navFolgas(1)" title="Próximo mês">▶</button></div>
         <label>Função<select id="fgFuncao"></select></label>
-        <label>Limite semanal<select id="fgLimite"><option value="42">42h (1ª etapa)</option><option value="40">40h (etapa final)</option><option value="44">44h (regra antiga)</option></select></label>
+        <label>Limite semanal<select id="fgLimite"><option value="40" selected>40h</option><option value="42">42h</option><option value="44">44h (regra antiga)</option></select></label>
         <label>Mostrar<select id="fgFiltro"><option value="">Todos</option><option value="prob">Só com pendência</option></select></label>
       </div>
       <div class="card small" style="line-height:1.5">
         <b>Como ler:</b> cada semana (seg a dom) mostra as folgas e as horas previstas na escala, já com as trocas feitas pelos gerentes.
-        A regra nova pede <b>2 folgas por semana na média do mês</b> e <b>pelo menos 1 folga em toda semana</b>.
+        O <b>saldo de folga</b> compara as horas previstas no mês com o limite semanal (40h): horas acima do limite viram folga a dar (horas ÷ jornada do dia), e cada dia de cobertura <b>paga com folga</b> soma +1. Saldo negativo = folgou mais do que precisava. A escala também precisa ter <b>pelo menos 1 folga em toda semana</b>.
         <span class="pill p-trab">2+ folgas</span> ok &nbsp; <span class="pill p-atestado">1 folga</span> precisa compensar no mês &nbsp; <span class="pill p-falta">0 folga</span> semana sem descanso.
         Dias de férias não entram na conta. Esta tela <b>só confere</b> — para ajustar, abra a escala da loja.
       </div>
@@ -725,17 +725,17 @@ async function renderFolgas(){
   const lid=$("#fgLoja").value, fn=$("#fgFuncao").value, lim=+$("#fgLimite").value, soProb=$("#fgFiltro").value==="prob";
   const cs=colabsDaLoja(lid).filter(c=>!fn||c.funcao===fn)
     .sort((a,b)=>numLoja(lojaNome(a.loja_id))-numLoja(lojaNome(b.loja_id))||FUNCOES.indexOf(a.funcao)-FUNCOES.indexOf(b.funcao)||a.nome.localeCompare(b.nome));
-  const k={tot:0,ok:0,semZero:0,abaixo:0,horas:0};
+  const k={tot:0,ok:0,semZero:0,abaixo:0,horas:0,aDar:0};
   const linhas=[];
   for(const c of cs){
     const hd=horasDia(c);
-    let folgasMes=0,diasValidosMes=0,zero=0,uma=0,acima=0;
+    let folgasMes=0,diasValidosMes=0,zero=0,uma=0,acima=0,diasTrabMes=0;
     const cels=semanas.map(s=>{
       let f=0,t=0,fe=0;
       for(let i=0;i<7;i++){const d=addDias(s,i);const o=ocDe(c.id,d);
         if(o&&o.tipo==="ferias"){fe++;continue}
         const trab=escalado(c,d); if(trab)t++;else f++;
-        if(d>=ini&&d<=fim){diasValidosMes++;if(!trab)folgasMes++}}
+        if(d>=ini&&d<=fim){diasValidosMes++;if(!trab)folgasMes++;else diasTrabMes++}}
       const h=t*hd;
       if(fe>=7)return `<td class="n"><span class="pill p-ferias">Férias</span></td>`;
       const parcial=fe>0;
@@ -743,22 +743,31 @@ async function renderFolgas(){
       const hAcima=!parcial&&h>lim+0.01; if(hAcima)acima++;
       return `<td class="n" style="white-space:nowrap"><span class="pill ${cls}">${f} folga${f===1?"":"s"}</span><br><span class="small" style="${hAcima?"color:var(--falta);font-weight:700":"color:var(--muted)"}">${Math.round(h*10)/10}h${parcial?" · férias":""}</span></td>`;
     });
-    const minimo=Math.round(diasValidosMes*2/7);
-    const falta=Math.max(0,minimo-folgasMes);
+    // saldo de folga pelas horas: previstas no mês x limite semanal proporcional aos dias do mês (sem férias)
+    const horasMes=diasTrabMes*hd, horasLimite=lim*diasValidosMes/7, saldoH=horasMes-horasLimite;
+    const folgasCob=OCS.filter(o=>o.cobertura_colaborador_id===c.id&&o.cobertura_pagamento==="folga"&&o.data_inicio<=fim&&o.data_fim>=ini)
+      .reduce((t,o)=>t+Math.round((parse(o.data_fim<fim?o.data_fim:fim)-parse(o.data_inicio>ini?o.data_inicio:ini))/864e5)+1,0);
+    const aplica=c.jornada!=="12x36"&&hd>0&&diasValidosMes>0;
+    const saldoF=aplica?Math.round((saldoH/hd+folgasCob)*2)/2:0; // em meias folgas
+    const fmt=v=>(v>0?"+":"")+String(v).replace(".",",");
+    const saldoHtml=!aplica?`<span class="small muted">—${c.jornada==="12x36"?" (12x36)":""}</span>${folgasCob?`<br><span class="small">+${folgasCob} por cobertura</span>`:""}`
+      :`<b style="color:${saldoF>=0.5?"var(--falta)":saldoF<=-0.5?"var(--ferias)":"var(--ok,inherit)"}">${fmt(saldoF)} folga${Math.abs(saldoF)===1?"":"s"}</b><br><span class="small muted">${fmt(Math.round(saldoH*10)/10)}h no mês${folgasCob?` · +${folgasCob} por cobertura`:""}</span>`;
+    const deve=aplica&&saldoF>=0.5?saldoF:0;
     const probs=[];
     if(zero)probs.push(`${zero} semana${zero>1?"s":""} sem folga`);
-    if(falta)probs.push(`faltam ${falta} folga${falta>1?"s":""} no mês`);
+    if(deve)probs.push(`dar ${String(deve).replace(".",",")} folga${deve>1?"s":""}`);
+    if(!aplica&&folgasCob)probs.push(`dar ${folgasCob} folga${folgasCob>1?"s":""} de cobertura`);
     if(acima)probs.push(`${acima} semana${acima>1?"s":""} acima de ${lim}h`);
-    k.tot++; if(!probs.length)k.ok++; if(zero)k.semZero++; if(falta)k.abaixo++; if(acima)k.horas++;
+    k.tot++; if(!probs.length)k.ok++; if(zero)k.semZero++; if(deve||(!aplica&&folgasCob)){k.abaixo++;k.aDar+=deve||folgasCob} if(acima)k.horas++;
     if(soProb&&!probs.length)continue;
     linhas.push({c,html:`<tr><td style="min-width:170px"><b>${esc(c.nome)}</b><br><span class="small muted">${esc(c.funcao)} · ${c.jornada} · ${hm(c.hora_entrada)}–${hm(c.hora_saida)}${lid?"":" · "+esc(lojaNome(c.loja_id))}</span></td>${cels.join("")}
-      <td class="n"><b>${folgasMes}</b> / ${minimo}</td>
+      <td class="n">${folgasMes}</td><td class="n" style="white-space:nowrap">${saldoHtml}</td>
       <td>${probs.length?`<span style="color:var(--falta);font-weight:600">${probs.join("; ")}</span>`:'<span class="pill p-trab">Em dia</span>'}</td></tr>`});
   }
-  $("#fgKpis").innerHTML=[["Colaboradores",k.tot,""],["Em dia",k.ok,"ok"],["Com semana sem folga",k.semZero,"falta"],["Folgas abaixo do mínimo no mês",k.abaixo,"atest"],[`Acima de ${lim}h em alguma semana`,k.horas,"falta"]]
+  $("#fgKpis").innerHTML=[["Colaboradores",k.tot,""],["Em dia",k.ok,"ok"],["Com semana sem folga",k.semZero,"falta"],["Com folga a dar no mês",k.abaixo,"atest"],["Total de folgas a dar",String(k.aDar).replace(".",","),"atest"],[`Acima de ${lim}h em alguma semana`,k.horas,"falta"]]
     .map(([t,v,c])=>`<div class="kpi ${c}"><span>${t}</span><strong>${v}</strong></div>`).join("");
   if(!cs.length){$("#fgLista").innerHTML='<div class="card"><div class="empty">Nenhum colaborador ativo.</div></div>';return}
-  const cab=`<tr><th>Colaborador</th>${semanas.map(s=>`<th class="n">${brCurto(s)}–${brCurto(addDias(s,6))}</th>`).join("")}<th class="n">Folgas no mês / mínimo</th><th>Pendências</th></tr>`;
+  const cab=`<tr><th>Colaborador</th>${semanas.map(s=>`<th class="n">${brCurto(s)}–${brCurto(addDias(s,6))}</th>`).join("")}<th class="n">Folgas no mês</th><th class="n">Saldo de folga (${lim}h)</th><th>Pendências</th></tr>`;
   const grupos={};linhas.forEach(l=>(grupos[l.c.loja_id]=grupos[l.c.loja_id]||[]).push(l.html));
   const ids=Object.keys(grupos).map(Number).sort((a,b)=>ordLoja({nome:lojaNome(a)},{nome:lojaNome(b)}));
   $("#fgLista").innerHTML=ids.length?ids.map(id=>`<div class="card"><h2 style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">${esc(lojaNome(id))}<button class="btn sm sec" onclick="abrirEscalaLoja(${id},'${ym}')">Abrir escala da loja</button></h2><div class="tbl"><table>${cab}${grupos[id].join("")}</table></div></div>`).join("")
