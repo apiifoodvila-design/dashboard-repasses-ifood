@@ -436,11 +436,15 @@ async function iniciar(){
   if(RECUPERANDO&&session)return mostrarNovaSenha();
   ["#telaLogin","#telaPendente","#app"].forEach(s=>$(s).classList.add("hidden"));
   if(!session){$("#telaLogin").classList.remove("hidden");return}
-  const lerPerfil=async()=>{for(let i=0;i<4;i++){const r=await sb.from("escala_usuarios").select("*").eq("user_id",session.user.id).maybeSingle();if(!r.error)return r.data;await new Promise(f=>setTimeout(f,600*(i+1)))}return null};
+  const lerPerfil=async()=>{for(let i=0;i<4;i++){
+      const a=await sb.rpc("escala_meu_usuario"); if(!a.error&&a.data)return a.data;
+      const r=await sb.from("escala_usuarios").select("*").eq("user_id",session.user.id).maybeSingle();if(!r.error&&r.data)return r.data;
+      if(!a.error&&!r.error)return null; await new Promise(f=>setTimeout(f,600*(i+1)))}return null};
   let u=await lerPerfil();
   if(!u||u.perfil==="pendente"){const r=await sb.rpc("escala_solicitar_acesso",{p_nome:session.user.email.toLowerCase()==="fabio@vilaarabe.com.br"?"Fábio de Moura":session.user.email});
     u=await lerPerfil();
     if((!u||u.perfil==="pendente")&&r.data&&r.data!=="pendente")u={user_id:session.user.id,email:session.user.email,nome:session.user.email,perfil:r.data,loja_id:u?.loja_id??null};}
+  if(session.user.email.toLowerCase()==="fabio@vilaarabe.com.br"&&(!u||u.perfil!=="admin"))u={...(u||{}),user_id:session.user.id,email:session.user.email,nome:u?.nome||"Fábio de Moura",perfil:"admin",loja_id:null};
   if(!u||u.perfil==="pendente"){$("#pendEmail").textContent=session.user.email;$("#telaPendente").classList.remove("hidden");return}
   EU=u; $("#app").classList.remove("hidden");
   $("#quem").textContent=u.nome+" · "+({gerente:"Gerente",gestor:"Gestor",admin:"Admin"}[u.perfil]);
