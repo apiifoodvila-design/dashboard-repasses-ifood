@@ -150,6 +150,7 @@ html{-webkit-tap-highlight-color:transparent}
     </form>
     <form id="fCriar" class="hidden">
       <input name="nome" placeholder="Seu nome" required>
+      <select name="loja" class="selCadLoja" required><option value="">Sua loja…</option></select>
       <input type="email" name="email" placeholder="E-mail" required>
       <input type="password" name="senha" placeholder="Senha (mín. 6 caracteres)" minlength="6" required>
       <button class="btn">Criar conta</button>
@@ -402,7 +403,9 @@ const pill=s=>({trab:'<span class="pill p-trab">Trabalhando</span>',folga:'<span
 const ehGestor=()=>EU&&(EU.perfil==="gestor"||EU.perfil==="admin");
 
 // ---------- auth ----------
-$("#lnkCriar").onclick=e=>{e.preventDefault();$("#fEsqueci").classList.add("hidden");$("#fCriar").classList.toggle("hidden")};
+async function lojasCadastro(){const {data}=await sb.rpc("escala_lojas_cadastro");
+  $$(".selCadLoja").forEach(s=>s.innerHTML='<option value="">Sua loja…</option>'+(data||[]).sort(ordLoja).map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join(""));}
+$("#lnkCriar").onclick=e=>{e.preventDefault();lojasCadastro();$("#fEsqueci").classList.add("hidden");$("#fCriar").classList.toggle("hidden")};
 $("#lnkEsqueci").onclick=e=>{e.preventDefault();$("#fCriar").classList.add("hidden");$("#fEsqueci").classList.toggle("hidden");$("#fEsqueci").email.value=$("#fLogin").email.value};
 $("#fEsqueci").onsubmit=async e=>{e.preventDefault();const em=e.target.email.value.trim();const m=$("#msgEsqueci");m.textContent="Enviando…";m.style.color="";
   const {error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});
@@ -422,8 +425,9 @@ $("#fLogin").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target
 $("#fCriar").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);$("#erroCriar").textContent="";
   const {data,error}=await sb.auth.signUp({email:f.get("email").trim(),password:f.get("senha"),options:{data:{origem:"escala"}}});
   if(error){$("#erroCriar").textContent=error.message.includes("registered")?"Este e-mail já tem conta. Use Entrar.":error.message;return}
-  if(!data.session){$("#erroCriar").textContent="Conta criada. Confirme o e-mail e depois entre.";return}
-  const r=await sb.rpc("escala_solicitar_acesso",{p_nome:f.get("nome")});
+  if(!data.session){const l=await sb.auth.signInWithPassword({email:f.get("email").trim(),password:f.get("senha")});
+    if(l.error){$("#erroCriar").textContent="Conta criada. Confirme o e-mail e depois entre.";return}}
+  const r=await sb.rpc("escala_entrar_loja",{p_nome:f.get("nome"),p_loja:+f.get("loja")});
   if(r.error){$("#erroCriar").textContent="Erro: "+r.error.message;return} iniciar();};
 async function sair(){await sb.auth.signOut();location.reload()}
 
