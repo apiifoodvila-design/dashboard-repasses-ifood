@@ -483,7 +483,8 @@ async function carregarAjustes(ini,fim){
 function montarSelects(){
   const lojasAtivas=LOJAS.filter(l=>l.ativo);
   const opts=lojasAtivas.map(l=>`<option value="${l.id}">${esc(l.nome)}</option>`).join("");
-  $$(".selLoja").forEach(s=>{ s.innerHTML=(ehGestor()?'<option value="">Todas as lojas</option>':"")+opts; if(!ehGestor()) {s.value=EU.loja_id;s.disabled=true;} });
+  $$(".selLoja").forEach(s=>{ s.innerHTML=(ehGestor()?'<option value="">Todas as lojas</option><option value="sel">☑ Escolher lojas…</option>':"")+opts; if(!ehGestor()) {s.value=EU.loja_id;s.disabled=true;}
+    if(ehGestor()&&!s.nextElementSibling?.classList?.contains("lojasEdit")){const b=document.createElement("button");b.type="button";b.className="btn sm sec lojasEdit hidden";b.textContent="Editar lojas";b.style.marginTop="4px";b.onclick=()=>abrirLojas(s);s.after(b)} });
   $$(".selLojaReal").forEach(s=>{ s.innerHTML=opts; if(!ehGestor()){s.value=EU.loja_id;s.disabled=true;} });
   $$(".selFuncao").forEach(s=>s.innerHTML=FUNCOES.map(f=>`<option>${f}</option>`).join(""));
   $("#coFuncao").innerHTML='<option value="">Todas</option>'+FUNCOES.map(f=>`<option>${f}</option>`).join("");
@@ -558,16 +559,43 @@ async function prepararPeriodo(P){await Promise.all([carregarOcorrencias(P.ini,P
 // turno pelo horário de entrada cadastrado: entra antes das 12:00 = manhã; a partir das 12:00 = tarde
 function turnoDe(c){return c&&c.hora_entrada&&c.hora_entrada<"12:00"?"manha":"tarde"}
 const noTurno=(c,t)=>!t||turnoDe(c)===t;
-function colabsDaLoja(lid){return COLABS.filter(c=>c.ativo&&(!lid||c.loja_id===+lid))}
+// ---------- filtro de lojas (todas, uma, ou várias marcadas) ----------
+const SELLOJAS={};
+function filtroLoja(id){const s=$("#"+id),v=s?s.value:"";
+  if(v==="sel"&&SELLOJAS[id]&&SELLOJAS[id].size){const set=SELLOJAS[id];return {all:false,one:set.size===1?[...set][0]:null,has:x=>set.has(+x),rotulo:set.size===1?lojaNome([...set][0]):set.size+" lojas"}}
+  if(v&&v!=="sel")return {all:false,one:+v,has:x=>+x===+v,rotulo:lojaNome(+v)};
+  return {all:true,one:null,has:()=>true,rotulo:""}}
+function abrirLojas(s){
+  let d=$("#dLojas");if(!d){d=document.createElement("dialog");d.id="dLojas";document.body.appendChild(d)}
+  const marc=SELLOJAS[s.id]||new Set();
+  d.innerHTML=`<div class="dh"><h3>Escolher lojas</h3><button class="x" type="button" onclick="cancelarLojas()">×</button></div>
+   <div class="db" style="padding:14px 20px;max-height:60vh;overflow:auto">
+    <div style="display:flex;gap:8px;margin-bottom:10px"><button type="button" class="btn sm sec" onclick="$$('#dLojas input[type=checkbox]').forEach(c=>c.checked=true)">Marcar todas</button><button type="button" class="btn sm sec" onclick="$$('#dLojas input[type=checkbox]').forEach(c=>c.checked=false)">Limpar</button></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px">${LOJAS.filter(l=>l.ativo).map(l=>`<label style="display:flex;flex-direction:row;gap:8px;align-items:center;font-weight:500;color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:8px 10px;cursor:pointer"><input type="checkbox" value="${l.id}" style="min-height:0;width:18px;height:18px" ${marc.has(l.id)?"checked":""}> ${esc(l.nome)}</label>`).join("")}</div></div>
+   <div class="df"><button type="button" class="btn sec" onclick="cancelarLojas()">Cancelar</button><button type="button" class="btn" onclick="aplicarLojas()">Aplicar</button></div>`;
+  d.dataset.alvo=s.id;d.showModal()}
+function cancelarLojas(){const d=$("#dLojas"),s=$("#"+d.dataset.alvo);d.close();if(s.value==="sel"&&!(SELLOJAS[s.id]&&SELLOJAS[s.id].size)){s.value=s.dataset.prev||"";s.onchange&&s.onchange()}atualizarRotuloLojas(s)}
+function aplicarLojas(){const d=$("#dLojas"),s=$("#"+d.dataset.alvo);const ids=$$("#dLojas input[type=checkbox]:checked").map(c=>+c.value);
+  if(!ids.length)return toast("Marque pelo menos uma loja");d.close();
+  if(ids.length===LOJAS.filter(l=>l.ativo).length){delete SELLOJAS[s.id];s.value="";}
+  else{SELLOJAS[s.id]=new Set(ids);s.value="sel"}
+  s.dataset.prev=s.value;atualizarRotuloLojas(s);s.onchange&&s.onchange()}
+function atualizarRotuloLojas(s){const o=s.querySelector('option[value="sel"]');if(!o)return;const n=SELLOJAS[s.id]?.size||0;
+  o.textContent=s.value==="sel"&&n?`☑ ${n} loja${n>1?"s":""} marcada${n>1?"s":""}`:"☑ Escolher lojas…";
+  const b=s.nextElementSibling;if(b&&b.classList.contains("lojasEdit"))b.classList.toggle("hidden",s.value!=="sel")}
+document.addEventListener("change",e=>{const s=e.target;if(!s.matches||!s.matches(".selLoja"))return;
+  if(s.value==="sel"&&!(SELLOJAS[s.id]&&SELLOJAS[s.id].size)){e.stopImmediatePropagation();abrirLojas(s);return}
+  if(s.value!=="sel")s.dataset.prev=s.value;atualizarRotuloLojas(s)},true);
+function colabsDaLoja(f){const F=f&&typeof f==="object"?f:{has:x=>!f||+x===+f};return COLABS.filter(c=>c.ativo&&F.has(c.loja_id))}
 async function renderDia(){
   const P=periodo("dia"); await prepararPeriodo(P);
-  const lid=$("#diaLoja").value, um=P.n===1, dias=P.dias;
+  const FL=filtroLoja("diaLoja"), lid=FL.one, um=P.n===1, dias=P.dias;
   const tn=$("#diaTurno").value;
-  $("#diaTitulo").textContent=(lid?lojaNome(+lid)+" — ":"")+P.titulo+(tn?" — turno da "+(tn==="manha"?"manhã":"tarde"):"");
+  $("#diaTitulo").textContent=(FL.rotulo?FL.rotulo+" — ":"")+P.titulo+(tn?" — turno da "+(tn==="manha"?"manhã":"tarde"):"");
   $("#diaNotaPer").classList.toggle("hidden",um);
   $("#diaAusTit").textContent=um?"Ausentes no dia":"Faltas e atestados no período";
   $("#diaEqTit").textContent=um?"Equipe do dia":"Equipe no período";
-  const cs=colabsDaLoja(lid).filter(c=>noTurno(c,tn));
+  const cs=colabsDaLoja(FL).filter(c=>noTurno(c,tn));
   const turnoOc=o=>noTurno(COLABS.find(x=>x.id===o.colaborador_id),tn); // turno de quem faltou
   // contagens em dias-pessoa
   const Z=()=>({esc:0,trab:0,falta:0,atestado:0,ferias:0,folga:0,vin:0});
@@ -577,14 +605,14 @@ async function renderDia(){
     for(const c of cs){const s=situacao(c,d).s;if(s==="cobrindo")continue;
       somar(tot,s);somar(porF[c.funcao]=porF[c.funcao]||Z(),s);const k=c.loja_id+"|"+c.funcao;somar(porLF[k]=porLF[k]||Z(),s);somar(porC[c.id]=porC[c.id]||Z(),s)}
     // quem veio de outra loja cobrir
-    for(const o of OCS){if(!o.cobertura_colaborador_id||o.data_inicio>d||o.data_fim<d||(lid&&o.loja_id!==+lid)||!turnoOc(o))continue;const c=colabPorId(o.cobertura_colaborador_id);if(!c||c.loja_id===o.loja_id)continue;
+    for(const o of OCS){if(!o.cobertura_colaborador_id||o.data_inicio>d||o.data_fim<d||!FL.has(o.loja_id)||!turnoOc(o))continue;const c=colabPorId(o.cobertura_colaborador_id);if(!c||c.loja_id===o.loja_id)continue;
       tot.trab++;tot.vin++;(porF[c.funcao]=porF[c.funcao]||Z()).trab++;porF[c.funcao].vin++;const k=o.loja_id+"|"+c.funcao;(porLF[k]=porLF[k]||Z()).trab++}
   }
   const u=um?"":" (dias)";
   // coberturas: pessoas que dobraram ou se deslocaram para cobrir falta/atestado
   const cobs=OCS.filter(o=>o.cobertura_colaborador_id&&(o.tipo==="falta"||o.tipo==="atestado")&&o.data_inicio<=P.fim&&o.data_fim>=P.ini)
     .map(o=>({o,c:colabPorId(o.cobertura_colaborador_id),a:colabPorId(o.colaborador_id),t:tipoCob(o)}))
-    .filter(x=>x.c&&(!lid||x.o.loja_id===+lid||x.c.loja_id===+lid)&&noTurno(x.a,tn));
+    .filter(x=>x.c&&(FL.has(x.o.loja_id)||FL.has(x.c.loja_id))&&noTurno(x.a,tn));
   const pessoas=t=>new Set(cobs.filter(x=>x.t===t).map(x=>x.c.id)).size;
   $("#diaKpis").innerHTML=[["Escalados"+u,tot.esc,""],["Trabalhando"+u,tot.trab,"ok"],["Faltas"+u,tot.falta,"falta"],["Atestados"+u,tot.atestado,"atest"],["Férias"+u,tot.ferias,"ferias"],["De folga"+u,tot.folga,"folga"],["Pessoas que dobraram",pessoas("dobra"),"atest"],["Pessoas deslocadas",pessoas("deslocamento"),"ferias"],["Coberturas a pagar em dinheiro",brl(cobs.filter(x=>x.o.cobertura_pagamento==="dinheiro").reduce((t,x)=>t+(+x.o.cobertura_valor||0),0)),"ok"],["Coberturas pagas com folga",cobs.filter(x=>x.o.cobertura_pagamento==="folga").length,"folga"]]
     .map(([t,v,k])=>`<div class="kpi ${k}"><span>${t}</span><strong>${v}</strong></div>`).join("");
@@ -594,7 +622,7 @@ async function renderDia(){
     ${linhas.map(r=>`<tr><td><b>${r.f}</b></td><td class="n">${z(r.esc)}</td><td class="n">${z(r.trab)}${r.vin?` <span class="pill p-cob">+${r.vin} cobertura</span>`:""}</td><td class="n">${r.falta?`<b style="color:var(--falta)">${r.falta}</b>`:z(0)}</td><td class="n">${r.atestado?`<b style="color:var(--atest)">${r.atestado}</b>`:z(0)}</td><td class="n">${z(r.ferias)}</td><td class="n">${z(r.folga)}</td></tr>`).join("")}</table>`:'<div class="empty">Nenhum colaborador cadastrado nesta loja.</div>';
   $("#cardMatriz").classList.toggle("hidden",!!lid||!ehGestor());
   if(!lid&&ehGestor()){
-    const lojas=LOJAS.filter(l=>l.ativo&&COLABS.some(c=>c.loja_id===l.id));
+    const lojas=LOJAS.filter(l=>l.ativo&&FL.has(l.id)&&COLABS.some(c=>c.loja_id===l.id));
     $("#diaMatriz").innerHTML=lojas.length?`<table class="mat"><tr><th>Loja</th>${FUNCOES.map(f=>`<th class="n">${f}</th>`).join("")}<th class="n">Ausências${u}</th></tr>
     ${lojas.map(l=>{let aus=0;const cel=FUNCOES.map(f=>{const x=porLF[l.id+"|"+f];if(!x||(!x.esc&&!x.trab))return `<td class="n zero">–</td>`;aus+=x.falta+x.atestado;return `<td class="n ${x.trab<x.esc?"bad":""}">${x.trab}/${x.esc}</td>`}).join("");
       return `<tr><td><b>${esc(l.nome)}</b></td>${cel}<td class="n">${aus?`<b style="color:var(--falta)">${aus}</b>`:'<span class="zero">0</span>'}</td></tr>`}).join("")}</table>`:'<div class="empty">Cadastre colaboradores para ver o quadro por loja.</div>';
@@ -612,7 +640,7 @@ async function renderDia(){
   const fs=$("#diaFiltroSit").value;
   if(um){
     const d=dias[0];const base=cs.map(c=>({c,...situacao(c,d)}));
-    const vindos=(REDE.length?REDE:COLABS).filter(c=>c.ativo&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=d&&o.data_fim>=d&&(!lid||o.loja_id===+lid)&&o.loja_id!==c.loja_id&&turnoOc(o)));
+    const vindos=(REDE.length?REDE:COLABS).filter(c=>c.ativo&&OCS.some(o=>o.cobertura_colaborador_id===c.id&&o.data_inicio<=d&&o.data_fim>=d&&FL.has(o.loja_id)&&o.loja_id!==c.loja_id&&turnoOc(o)));
     let eq=base.filter(x=>!fs||(fs==="trab"&&x.s==="trab")||(fs==="folga"&&x.s==="folga")||(fs==="aus"&&["falta","atestado","ferias"].includes(x.s)));
     eq=eq.concat(fs&&fs!=="trab"?[]:vindos.map(c=>({c,s:"veio"})));
     eq.sort((a,b)=>numLoja(lojaNome(a.c.loja_id))-numLoja(lojaNome(b.c.loja_id))||FUNCOES.indexOf(a.c.funcao)-FUNCOES.indexOf(b.c.funcao)||a.c.nome.localeCompare(b.c.nome));
@@ -722,8 +750,8 @@ async function renderFolgas(){
   const seg0=addDias(ini,-((parse(ini).getDay()+6)%7)); const domF=addDias(fim,(7-parse(fim).getDay())%7);
   const semanas=[];for(let d=seg0;d<=domF;d=addDias(d,7))semanas.push(d);
   await prepararPeriodo({ini:seg0,fim:domF});
-  const lid=$("#fgLoja").value, fn=$("#fgFuncao").value, lim=+$("#fgLimite").value, soProb=$("#fgFiltro").value==="prob";
-  const cs=colabsDaLoja(lid).filter(c=>!fn||c.funcao===fn)
+  const FL=filtroLoja("fgLoja"), lid=FL.one, fn=$("#fgFuncao").value, lim=+$("#fgLimite").value, soProb=$("#fgFiltro").value==="prob";
+  const cs=colabsDaLoja(FL).filter(c=>!fn||c.funcao===fn)
     .sort((a,b)=>numLoja(lojaNome(a.loja_id))-numLoja(lojaNome(b.loja_id))||FUNCOES.indexOf(a.funcao)-FUNCOES.indexOf(b.funcao)||a.nome.localeCompare(b.nome));
   const k={tot:0,ok:0,semZero:0,abaixo:0,horas:0,aDar:0};
   const linhas=[];
@@ -868,8 +896,8 @@ async function atualizarAlertas(){const ini=addDias(hojeISO(),-60);const o=await
    const t=$$("#tabs button").find(b=>b.classList.contains("on")).dataset.t;if(t==="alertas")renderAlertas();if(t==="dia")renderDia();}}
 async function renderAlertas(){
   const P=periodo("al"); await carregarOcorrencias(P.ini,P.fim);
-  const lid=$("#alLoja").value, f=$("#alFiltro").value;
-  let l=OCS.filter(o=>(!lid||o.loja_id===+lid)&&o.data_inicio<=P.fim&&o.data_fim>=P.ini&&(f==="novos"?(!o.visto_em&&o.tipo!=="ferias"):true));
+  const FL=filtroLoja("alLoja"), f=$("#alFiltro").value;
+  let l=OCS.filter(o=>FL.has(o.loja_id)&&o.data_inicio<=P.fim&&o.data_fim>=P.ini&&(f==="novos"?(!o.visto_em&&o.tipo!=="ferias"):true));
   const resumo=`<p class="small muted" style="margin:0 0 10px">${P.titulo} · ${l.length} lançamento(s)</p>`;
   $("#alLista").innerHTML=resumo+(l.length?l.map(o=>cartaoOc(o)).join(""):`<div class="card empty">${f==="novos"?"Nenhum alerta não visto neste período. Tudo em dia!":"Nenhum lançamento neste período."}</div>`);
 }
@@ -956,8 +984,8 @@ $("#fOc").onsubmit=async e=>{e.preventDefault();const f=e.target;$("#erroOc").te
 // ---------- FÉRIAS ----------
 async function renderFerias(){
   const P=periodo("fe"); await carregarOcorrencias(P.ini,P.fim);
-  const lid=$("#feLoja").value, ini=P.ini, fim=P.fim;
-  const fe=OCS.filter(o=>o.tipo==="ferias"&&o.data_fim>=ini&&o.data_inicio<=fim&&(!lid||o.loja_id===+lid)).sort((a,b)=>a.data_inicio.localeCompare(b.data_inicio));
+  const FL=filtroLoja("feLoja"), lid=FL.one, ini=P.ini, fim=P.fim;
+  const fe=OCS.filter(o=>o.tipo==="ferias"&&o.data_fim>=ini&&o.data_inicio<=fim&&FL.has(o.loja_id)).sort((a,b)=>a.data_inicio.localeCompare(b.data_inicio));
   const hoje=hojeISO();const agora=fe.filter(o=>o.data_inicio<=hoje&&o.data_fim>=hoje).length;
   const prox30=fe.filter(o=>o.data_inicio>hoje&&o.data_inicio<=addDias(hoje,30)).length;
   const diasFe=fe.reduce((a,o)=>a+diffDias(o.data_fim<fim?o.data_fim:fim,o.data_inicio>ini?o.data_inicio:ini)+1,0);
@@ -976,8 +1004,8 @@ async function renderFerias(){
 // ---------- COLABORADORES ----------
 function descJornada(c){if(c.jornada==="12x36")return "12x36";return c.jornada+" · folga "+(c.folgas||[]).map(i=>DIAS[i]).join(", ")}
 function renderColabs(){
-  const lid=$("#coLoja").value, fn=$("#coFuncao").value, q=$("#coBusca").value.trim().toLowerCase();
-  const l=COLABS.filter(c=>(!lid||c.loja_id===+lid)&&(!fn||c.funcao===fn||(c.habilidades||[]).includes(fn))&&(!q||c.nome.toLowerCase().includes(q)));
+  const FL=filtroLoja("coLoja"), fn=$("#coFuncao").value, q=$("#coBusca").value.trim().toLowerCase();
+  const l=COLABS.filter(c=>FL.has(c.loja_id)&&(!fn||c.funcao===fn||(c.habilidades||[]).includes(fn))&&(!q||c.nome.toLowerCase().includes(q)));
   $("#coTotal").textContent=`${l.filter(c=>c.ativo).length} ativos${l.some(c=>!c.ativo)?` · ${l.filter(c=>!c.ativo).length} inativos`:""}`;
   $("#coLista").innerHTML=l.length?`<table><tr><th>Nome</th><th>Loja</th><th>Função</th><th>Também faz</th><th>Horário</th><th>Jornada</th><th>Hoje</th><th></th></tr>
    ${l.map(c=>`<tr style="${c.ativo?"":"opacity:.5"}"><td><b>${esc(c.nome)}</b></td><td>${esc(lojaNome(c.loja_id))}</td><td>${c.funcao}</td><td class="small">${(c.habilidades||[]).join(", ")||'<span class="zero">—</span>'}</td><td>${hm(c.hora_entrada)}–${hm(c.hora_saida)}</td><td class="small">${descJornada(c)}</td><td>${c.ativo?pill(situacao(c,hojeISO()).s):"Inativo"}</td><td><button class="btn sm sec" onclick="editarColab(${c.id})">Editar</button></td></tr>`).join("")}</table>`:'<div class="empty">Nenhum colaborador encontrado. Clique em “+ Novo colaborador” ou importe a planilha.</div>';
@@ -989,7 +1017,7 @@ $("#cJornada").onchange=ajustarJornada;
 $("#cPeriodo").onchange=e=>{const v=e.target.value;if(!v)return;const[a,b]=v.split("-");$("#fColab").hora_entrada.value=a;$("#fColab").hora_saida.value=b};
 function editarColab(id){
   editId=id||null;const f=$("#fColab");f.reset();$("#erroColab").textContent="";$("#cPeriodo").value="";
-  const c=id?COLABS.find(x=>x.id===id):{loja_id:ehGestor()?(+$("#coLoja").value||LOJAS[0]?.id):EU.loja_id,funcao:"Atendente",jornada:"6x1",hora_entrada:"07:00",hora_saida:"15:20",folgas:[0],habilidades:[],ativo:true};
+  const c=id?COLABS.find(x=>x.id===id):{loja_id:ehGestor()?(filtroLoja("coLoja").one||LOJAS[0]?.id):EU.loja_id,funcao:"Atendente",jornada:"6x1",hora_entrada:"07:00",hora_saida:"15:20",folgas:[0],habilidades:[],ativo:true};
   $("#dColabTit").textContent=id?"Editar colaborador":"Novo colaborador";
   f.nome.value=c.nome||"";f.loja_id.value=c.loja_id;f.funcao.value=c.funcao;f.jornada.value=c.jornada;
   f.hora_entrada.value=hm(c.hora_entrada);f.hora_saida.value=hm(c.hora_saida);f.data_base_12x36.value=c.data_base_12x36||"";
