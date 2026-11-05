@@ -239,12 +239,12 @@ html{-webkit-tap-highlight-color:transparent}
         <label>Mês<input type="month" id="fgMes"></label>
         <div style="display:flex;gap:4px"><button class="btn sec" onclick="navFolgas(-1)" title="Mês anterior">◀</button><button class="btn sec" onclick="navFolgas(0)">Hoje</button><button class="btn sec" onclick="navFolgas(1)" title="Próximo mês">▶</button></div>
         <label>Função<select id="fgFuncao"></select></label>
-        <label>Limite semanal<select id="fgLimite"><option value="40" selected>40h</option><option value="42">42h</option><option value="44">44h (regra antiga)</option></select></label>
+        <label>Limite semanal<select id="fgLimite"><option value="40">40h</option><option value="42" selected>42h</option><option value="44">44h (regra antiga)</option></select></label>
         <label>Mostrar<select id="fgFiltro"><option value="">Todos</option><option value="prob">Só com pendência</option></select></label>
       </div>
       <div class="card small" style="line-height:1.5">
         <b>Como ler:</b> cada semana (seg a dom) mostra as folgas e as horas previstas na escala, já com as trocas feitas pelos gerentes.
-        O <b>saldo de folga</b> compara as horas previstas no mês com o limite semanal (40h): horas acima do limite viram folga a dar (horas ÷ jornada do dia), e cada dia de cobertura <b>paga com folga</b> soma +1. Saldo negativo = folgou mais do que precisava. A escala também precisa ter <b>pelo menos 1 folga em toda semana</b>.
+        O <b>saldo de folga</b> compara as horas previstas no mês com o limite semanal (42h): horas acima do limite viram folga a dar (horas ÷ jornada do dia), e cada dia de cobertura <b>paga com folga</b> soma +1. Saldo negativo = folgou mais do que precisava. A escala também precisa ter <b>pelo menos 1 folga em toda semana</b>.
         <span class="pill p-trab">2+ folgas</span> ok &nbsp; <span class="pill p-atestado">1 folga</span> precisa compensar no mês &nbsp; <span class="pill p-falta">0 folga</span> semana sem descanso.
         Dias de férias não entram na conta. Esta tela <b>só confere</b> — para ajustar, abra a escala da loja.
       </div>
