@@ -1138,6 +1138,7 @@ async function avFn(acao,extra={}){const {data:{session}}=await sb.auth.getSessi
   const j=await r.json().catch(()=>({erro:"Resposta inválida do servidor ("+r.status+")"}));if(!r.ok||j.erro)throw new Error(j.erro||("Erro "+r.status));return j}
 function avBadge(n){const b=$("#bAval");if(!b)return;b.textContent=n||0;b.classList.toggle("hidden",!n)}
 const brDH=x=>x?new Date(x).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"}):"—";
+const avOrig=t=>{if(!t)return t;const i=t.indexOf("(Original)");return(i>=0?t.slice(i+10):t.replace(/^\(Translated by Google\)\s*/,"")).trim()};
 const estrelas=n=>`<span style="color:#E8A100;letter-spacing:1px" title="${n} de 5">${"★".repeat(n||0)}${"☆".repeat(5-(n||0))}</span>`;
 const avLojaNome=nm=>(AVLOC.find(l=>l.name===nm)||{}).titulo||"—";
 async function renderAvaliacoes(){
@@ -1182,7 +1183,7 @@ function avLista(){
   $("#avPend").innerHTML=L.length?(L.length>40?`<p class="small muted">Mostrando 40 de ${L.length}.</p>`:"")+mostra.map(a=>`
     <div class="alerta" style="border-left-color:${a.estrelas<=2?"var(--falta)":a.estrelas===3?"var(--atest)":"var(--ok)"};display:block">
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div><b>${esc(a.autor||"Cliente")}</b> ${estrelas(a.estrelas)}<br><span class="small muted">${esc(avLojaNome(a.local_name))} · ${brDH(a.criado_em)}</span></div></div>
-      <p style="margin:8px 0;white-space:pre-wrap">${a.comentario?esc(a.comentario):'<span class="muted">(sem comentário, só a nota)</span>'}</p>
+      <p style="margin:8px 0;white-space:pre-wrap">${a.comentario?esc(avOrig(a.comentario)):'<span class="muted">(sem comentário, só a nota)</span>'}</p>
       ${a.erro?`<div class="erro small">${esc(a.erro)}</div>`:""}
       <textarea id="avt-${a.i}" rows="4" style="width:100%" placeholder="${a.rascunho?"":"Clique em Escrever resposta"}">${esc(a.rascunho||"")}</textarea>
       <div class="bar" style="margin-top:8px">
