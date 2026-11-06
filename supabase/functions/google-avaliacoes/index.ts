@@ -99,6 +99,8 @@ ${r.comentario || "(sem comentário escrito)"}
 
 // ---------- Sincronização ----------
 async function sincronizar(c: Cfg, opts: { gerar?: boolean } = {}) {
+  const inicio = Date.now();
+  const tempoAcabando = () => Date.now() - inicio > 95_000;
   const tok = await tokenGoogle(c);
   const contas: any[] = [];
   let pt = "";
@@ -122,15 +124,21 @@ async function sincronizar(c: Cfg, opts: { gerar?: boolean } = {}) {
 
   const desde = c.auto_desde ? new Date(c.auto_desde) : new Date();
   const erros: string[] = [];
-  let novas = 0;
-  for (const l of locais.values()) {
+  let novas = 0, incompleto = false;
+  // lojas mais antigas de sincronizar primeiro, para continuar de onde parou
+  const { data: ja } = await db.from("gr_locais").select("name,atualizado_em,total");
+  const visto = new Map((ja || []).map((x: any) => [x.name, x.total == null ? 0 : new Date(x.atualizado_em).getTime()]));
+  const ordem = [...locais.values()].sort((a, b) => (visto.get(a.name) ?? 0) - (visto.get(b.name) ?? 0));
+  for (const l of ordem) {
+    if (tempoAcabando()) { incompleto = true; break; }
     const sa = l.storefrontAddress;
     const endereco = sa ? [(sa.addressLines || []).join(", "), sa.locality].filter(Boolean).join(" - ") : null;
     const { data: antes } = await db.from("gr_locais").select("ativo").eq("name", l.name).maybeSingle();
-    await db.from("gr_locais").upsert({ name: l.name, conta: l.conta, titulo: l.title, endereco, atualizado_em: agora() });
+    await db.from("gr_locais").upsert({ name: l.name, conta: l.conta, titulo: l.title, endereco });
+    const completa = (visto.get(l.name) ?? 0) > 0; // já foi lida inteira antes
     if (antes && antes.ativo === false) continue;
     const acc = l.conta.split("/")[1], lid = l.name.split("/")[1];
-    let pr = "", paginas = 0, nota: number | null = null, total: number | null = null;
+    let jaConhecida = false, pr = "", paginas = 0, nota: number | null = null, total: number | null = null;
     try {
       do {
         const j = await g(tok, `https://mybusiness.googleapis.com/v4/accounts/${acc}/locations/${lid}/reviews?pageSize=50&orderBy=updateTime%20desc${pr ? `&pageToken=${pr}` : ""}`);
@@ -140,6 +148,7 @@ async function sincronizar(c: Cfg, opts: { gerar?: boolean } = {}) {
         const { data: ex } = await db.from("gr_avaliacoes").select("id,status,atualizado_em").in("id", ids.length ? ids : ["-"]);
         const mapa = new Map((ex || []).map((e: any) => [e.id, e]));
         let mudou = false;
+        const lote: any[] = [];
         for (const r of revs) {
           const e: any = mapa.get(r.name);
           if (e && e.atualizado_em && new Date(e.atualizado_em).getTime() === new Date(r.updateTime).getTime()) continue;
@@ -155,25 +164,32 @@ async function sincronizar(c: Cfg, opts: { gerar?: boolean } = {}) {
           else if (e?.status === "ignorada") row.status = "ignorada";
           else if (e?.status === "pendente") row.status = "pendente";
           else { row.status = new Date(r.createTime) >= desde ? "pendente" : "antiga"; row.rascunho = null; novas++; }
-          await db.from("gr_avaliacoes").upsert(row);
+          lote.push(row);
+        }
+        if (lote.length) {
+          // linhas com e sem "rascunho" precisam ir em lotes separados (mesmas colunas)
+          const a = lote.filter((x) => "rascunho" in x), b2 = lote.filter((x) => !("rascunho" in x));
+          if (a.length) await db.from("gr_avaliacoes").upsert(a);
+          if (b2.length) await db.from("gr_avaliacoes").upsert(b2);
         }
         pr = j.nextPageToken || "";
         paginas++;
-        if (!mudou && revs.length) break; // já conhecia tudo desta página
-      } while (pr && paginas < 40);
-      await db.from("gr_locais").update({ nota, total }).eq("name", l.name);
+        if (completa && !mudou && revs.length) { jaConhecida = true; break; } // já conhecia tudo desta página
+      } while (pr && paginas < 40 && !tempoAcabando());
+      if (pr && paginas < 40 && tempoAcabando() && !jaConhecida) { incompleto = true; break; } // acabou o tempo no meio da loja: continua na próxima busca
+      await db.from("gr_locais").update({ nota, total, atualizado_em: agora() }).eq("name", l.name);
     } catch (err) {
       erros.push(`${l.title}: ${(err as Error).message}`);
     }
   }
 
   let auto = 0, pend = 0;
-  if (opts.gerar !== false) {
+  if (opts.gerar !== false && !tempoAcabando()) {
     const r2 = await processarPendentes(c, tok);
     auto = r2.auto; pend = r2.pend; erros.push(...r2.erros);
   }
   await setCfg({ ultima_sync: agora(), ultima_sync_erros: erros.slice(0, 8).join(" | ") });
-  return { locais: locais.size, novas, auto, pend, erros };
+  return { locais: locais.size, novas, auto, pend, erros, incompleto };
 }
 
 async function processarPendentes(c: Cfg, tok: string) {

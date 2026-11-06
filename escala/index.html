@@ -1198,7 +1198,10 @@ async function avSalvar(){const o={google_client_id:$("#avCid").value,google_cli
 async function avSalvarCfg(o){try{await avFn("salvar",o);toast("Configuração salva");renderAvaliacoes()}catch(e){toast("Erro: "+e.message)}}
 async function avConectar(){try{const j=await avFn("auth_url");location.href=j.url}catch(e){toast("Erro: "+e.message)}}
 async function avSync(){const b=$("#avBtnSync");b.disabled=true;b.textContent="Buscando... (pode levar 1 a 2 minutos)";
-  try{const j=await avFn("sincronizar");toast(`${j.locais} lojas · ${j.novas} novas · ${j.auto} respondidas pelo robô · ${j.pend} para aprovar`)}catch(e){toast("Erro: "+e.message)}
+  try{let j,tot={novas:0,auto:0,pend:0},n=0;
+    do{n++;j=await avFn("sincronizar");tot.novas+=j.novas;tot.auto+=j.auto;tot.pend+=j.pend;
+      if(j.incompleto){b.textContent=`Buscando... parte ${n} (lojas com muitas avaliações)`;renderAvaliacoes()}}while(j.incompleto&&n<15);
+    toast(`${j.locais} lojas · ${tot.novas} avaliações lidas · ${tot.auto} respondidas pelo robô · ${tot.pend} para aprovar`+(j.incompleto?" · o robô continua o resto sozinho":""))}catch(e){toast("Erro: "+e.message)}
   b.disabled=false;b.textContent="Buscar avaliações agora";renderAvaliacoes()}
 async function avGerar(i,b){const a=AVL[i];b.disabled=true;b.textContent="Escrevendo...";
   try{const j=await avFn("gerar",{id:a.id,instrucao:$("#avi-"+i).value});a.rascunho=j.rascunho;$("#avt-"+i).value=j.rascunho;if(a.status==="antiga")a.status="pendente"}catch(e){toast("Erro: "+e.message)}
