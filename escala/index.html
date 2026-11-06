@@ -337,6 +337,12 @@ html{-webkit-tap-highlight-color:transparent}
         </div>
         <p class="small muted" style="margin-bottom:0">O robô busca avaliações novas de hora em hora. 4 e 5 estrelas são respondidas sozinhas (se marcado acima). 1 a 3 estrelas esperam aprovação aqui.</p>
       </div>
+      <div class="card"><h2>Responder antigas em lote</h2>
+        <p class="small muted">O robô escreve a resposta das avaliações antigas sem resposta. As de <b>4 e 5 estrelas</b> são publicadas no Google na hora; as de <b>1 a 3 estrelas</b> viram rascunho em "Novas, aguardando aprovação" para você revisar. Custo aproximado: US$ 0,01 a cada 100 avaliações.</p>
+        <div class="bar"><label>Período<select id="avLotePer"><option value="3">Últimos 3 meses</option><option value="12" selected>Últimos 12 meses</option><option value="24">Últimos 2 anos</option><option value="0">Todas</option></select></label>
+          <button class="btn" type="button" id="avLoteBtn" onclick="avLote()">Começar</button>
+          <button class="btn sec hidden" type="button" id="avLoteParar" onclick="AVPARAR=true">Parar</button>
+          <span class="small" id="avLoteInfo"></span></div></div>
       <div class="card"><h2>Para responder</h2>
         <div class="bar"><label>Mostrar<select id="avFiltro"><option value="pendente">Novas, aguardando aprovação</option><option value="antiga">Antigas sem resposta</option></select></label>
           <label>Loja<select id="avLoja"><option value="">Todas</option></select></label>
@@ -1210,6 +1216,20 @@ async function avGerar(i,b){const a=AVL[i];b.disabled=true;b.textContent="Escrev
 async function avPublicar(i,b){const a=AVL[i],t=$("#avt-"+i).value.trim();if(!t)return toast("Escreva a resposta antes de publicar");
   b.disabled=true;b.textContent="Publicando...";
   try{await avFn("publicar",{id:a.id,texto:t});toast("Resposta publicada no Google");renderAvaliacoes()}catch(e){toast("Erro: "+e.message);b.disabled=false;b.textContent="Publicar no Google"}}
+let AVPARAR=false;
+async function avLote(){
+  const m=+$("#avLotePer").value;const desde=m?new Date(Date.now()-m*30.44*864e5).toISOString():"1900-01-01";
+  const per=$("#avLotePer").selectedOptions[0].textContent.toLowerCase();
+  if(!confirm(`Responder as avaliações antigas sem resposta (${per})?\n\n4 e 5 estrelas serão publicadas no Google na hora.\n1 a 3 estrelas ficam como rascunho para você aprovar.`))return;
+  AVPARAR=false;const b=$("#avLoteBtn"),pa=$("#avLoteParar"),inf=$("#avLoteInfo");b.disabled=true;pa.classList.remove("hidden");
+  let pub=0,ras=0,j;
+  try{do{j=await avFn("lote",{desde});pub+=j.publicadas;ras+=j.rascunhos;
+      inf.textContent=`${pub} publicadas · ${ras} rascunhos para aprovar · faltam ${j.restantes}`;
+      if(j.erros&&j.erros.length){toast("Erro: "+j.erros[0]);break}
+    }while(j.restantes>0&&!AVPARAR&&(j.publicadas+j.rascunhos)>0);
+    toast(AVPARAR?"Lote parado. Dá para continuar depois.":j.restantes?"Lote parou: veja o aviso.":"Pronto! Antigas do período respondidas.")}
+  catch(e){toast("Erro: "+e.message)}
+  b.disabled=false;pa.classList.add("hidden");renderAvaliacoes()}
 async function avIgnorar(i){try{await avFn("ignorar",{id:AVL[i].id});toast("Marcada como não responder");renderAvaliacoes()}catch(e){toast("Erro: "+e.message)}}
 async function avLocalAtivo(i,v){try{await avFn("local_ativo",{name:AVLOC[i].name,ativo:v});toast(v?"Robô ligado para esta loja":"Robô desligado para esta loja")}catch(e){toast("Erro: "+e.message)}}
 

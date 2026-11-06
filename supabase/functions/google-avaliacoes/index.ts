@@ -316,6 +316,39 @@ Deno.serve(async (req) => {
         await db.from("gr_avaliacoes").update({ rascunho: texto, resposta: texto, resposta_em: agora(), status: "publicada", publicado_por: quem.nome, publicado_em: agora(), erro: null }).eq("id", b.id);
         return json({ ok: true });
       }
+      case "lote": {
+        // Responde avaliações antigas sem resposta, em partes: 4-5 estrelas publica, 1-3 vira rascunho para aprovar
+        const inicio = Date.now();
+        const desde = typeof b.desde === "string" ? b.desde : "1900-01-01";
+        const tok = await tokenGoogle(c);
+        let publicadas = 0, rascunhos = 0;
+        const erros: string[] = [];
+        while (Date.now() - inicio < 80_000) {
+          const { data: lista } = await db.from("gr_avaliacoes").select("id,autor,estrelas,comentario,gr_locais(titulo)")
+            .eq("status", "antiga").gte("criado_em", desde).order("criado_em", { ascending: false }).limit(6);
+          if (!lista || !lista.length) break;
+          await Promise.all(lista.map(async (r: any) => {
+            try {
+              const txt = await escreverResposta(c, r);
+              if ((r.estrelas ?? 0) >= 4) {
+                await publicarGoogle(tok, r.id, txt);
+                await db.from("gr_avaliacoes").update({ rascunho: txt, resposta: txt, resposta_em: agora(), status: "auto", publicado_por: "Robô (lote)", publicado_em: agora(), erro: null }).eq("id", r.id);
+                publicadas++;
+              } else {
+                await db.from("gr_avaliacoes").update({ rascunho: txt, status: "pendente", erro: null }).eq("id", r.id);
+                rascunhos++;
+              }
+            } catch (e) {
+              const m = (e as Error).message;
+              erros.push(m);
+              await db.from("gr_avaliacoes").update({ erro: m, status: "pendente" }).eq("id", r.id);
+            }
+          }));
+          if (erros.length >= 6) break; // algo errado (saldo, login): para e avisa
+        }
+        const { count: restantes } = await db.from("gr_avaliacoes").select("id", { count: "exact", head: true }).eq("status", "antiga").gte("criado_em", desde);
+        return json({ ok: true, publicadas, rascunhos, restantes, erros: erros.slice(0, 3) });
+      }
       case "ignorar":
         await db.from("gr_avaliacoes").update({ status: "ignorada" }).eq("id", b.id);
         return json({ ok: true });
